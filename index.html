@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#07070c" />
+  <title>TALIA // NETRUNNER HUD v0.2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #06060b;
+      --bg-panel: rgba(14, 15, 24, 0.88);
+      --bg-panel-solid: #0e0f18;
+      --cp-yellow: #fcee0a;
+      --cp-cyan: #00f0ff;
+      --cp-red: #ff003c;
+      --cp-green: #00ff66;
+      --cp-purple: #b829ff;
+      --text-main: #eef2f6;
+      --text-dim: #7f8a9c;
+      --border-cyan: rgba(0, 240, 255, 0.35);
+      --border-yellow: rgba(252, 238, 10, 0.45);
+      --border-red: rgba(255, 0, 60, 0.45);
+      --font-hud: 'Chakra Petch', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100dvh;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-hud);
+      overflow: hidden;
+      background-image:
+        radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.09) 0%, transparent 55%),
+        radial-gradient(circle at 90% 100%, rgba(255, 0, 60, 0.08) 0%, transparent 50%),
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+      background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+    }
+
+    /* Сканлайни CRT */
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 2px,
+        rgba(0, 0, 0, 0.18) 3px
+      );
+      z-index: 999;
+    }
+
+    .hud-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 8px 10px env(safe-area-inset-bottom, 8px);
+      gap: 8px;
+    }
+
+    /* Верхній хедер TALIA */
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--bg-panel);
+      border: 1px solid var(--border-cyan);
+      border-left: 4px solid var(--cp-yellow);
+      padding: 8px 12px;
+      clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+      box-shadow: 0 0 18px rgba(0, 240, 255, 0.08);
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: var(--cp-yellow);
+      text-shadow: 0 0 10px rgba(252, 238, 10, 0.45);
+      text-transform: uppercase;
+    }
+
+    .brand-sub {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      color: var(--cp-cyan);
+      letter-spacing: 1px;
+      opacity: 0.9;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 4px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cp-red);
+      box-shadow: 0 0 8px var(--cp-red);
+    }
+
+    .status-pill.online {
+      border-color: rgba(0, 255, 102, 0.45);
+      color: var(--cp-green);
+    }
+
+    .status-pill.online .status-dot {
+      background: var(--cp-green);
+      box-shadow: 0 0 8px var(--cp-green);
+    }
+
+    .icon-btn {
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid var(--border-cyan);
+      color: var(--cp-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 4px 8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .icon-btn:active, .icon-btn.active {
+      background: var(--cp-cyan);
+      color: #000;
+      font-weight: 700;
+    }
+
+    /* Панель налаштування тунелю та API ключа */
+    .config-drawer {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+      background: var(--bg-panel-solid);
+      border: 1px solid var(--border-yellow);
+      padding: 10px;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+    }
+
+    .config-drawer.open {
+      display: flex;
+    }
+
+    .config-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .config-label {
+      color: var(--cp-yellow);
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .cp-input {
+      flex: 1;
+      background: #05060a;
+      border: 1px solid var(--border-cyan);
+      color: var(--cp-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.76rem;
+      padding: 7px 9px;
+      outline: none;
+    }
+
+    .cp-input:focus {
+      border-color: var(--cp-yellow);
+      box-shadow: 0 0 8px rgba(252, 238, 10, 0.25);
+    }
+
+    .cp-btn-sm {
+      background: var(--cp-yellow);
+      color: #000;
+      border: none;
+      font-family: var(--font-hud);
+      font-weight: 700;
+      font-size: 0.74rem;
+      padding: 7px 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Смуга телеметрії (CPU / GPU / RAM / DISK) */
+    .telemetry-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .stat-card {
+      background: var(--bg-panel);
+      border: 1px solid rgba(0, 240, 255, 0.22);
+      padding: 5px 8px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3px;
+      height: 100%;
+      background: var(--cp-cyan);
+    }
+
+    .stat-card.gpu::before {
+      background: var(--cp-yellow);
+    }
+
+    .stat-card.temp::before {
+      background: var(--cp-red);
+    }
+
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-top: 1px;
+    }
+
+    /* Медіа-стрічка та швидкі тригери */
+    .control-deck {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-cyan);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .now-playing-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.2);
+      padding-bottom: 5px;
+    }
+
+    .track-marquee {
+      color: var(--cp-cyan);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+    }
+
+    .vol-badge {
+      color: var(--cp-yellow);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .trigger-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+
+    .cp-trigger {
+      background: rgba(0, 240, 255, 0.07);
+      border: 1px solid var(--border-cyan);
+      color: var(--text-main);
+      font-family: var(--font-hud);
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 8px 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%);
+      transition: transform 0.08s ease, background 0.15s ease, box-shadow 0.15s ease;
+      user-select: none;
+    }
+
+    .cp-trigger:active {
+      transform: scale(0.96);
+      background: var(--cp-cyan);
+      color: #000;
+      box-shadow: 0 0 12px var(--cp-cyan);
+    }
+
+    .cp-trigger.warn {
+      border-color: var(--border-yellow);
+      color: var(--cp-yellow);
+      background: rgba(252, 238, 10, 0.06);
+    }
+
+    .cp-trigger.warn:active {
+      background: var(--cp-yellow);
+      color: #000;
+    }
+
+    .cp-trigger.danger {
+      border-color: var(--border-red);
+      color: var(--cp-red);
+      background: rgba(255, 0, 60, 0.08);
+    }
+
+    .cp-trigger.danger:active {
+      background: var(--cp-red);
+      color: #fff;
+    }
+
+    .volume-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-top: 2px;
+    }
+
+    .vol-slider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      background: #1a1d2e;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      outline: none;
+    }
+
+    .vol-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--cp-yellow);
+      border: 2px solid #000;
+      box-shadow: 0 0 8px var(--cp-yellow);
+      cursor: pointer;
+    }
+
+    /* Термінальний чат із Talia */
+    .terminal-window {
+      flex: 1;
+      min-height: 0;
+      background: rgba(8, 9, 15, 0.92);
+      border: 1px solid var(--border-cyan);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 10px;
+      background: rgba(0, 240, 255, 0.08);
+      border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--cp-cyan);
+      letter-spacing: 1px;
+    }
+
+    .chat-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      scroll-behavior: smooth;
+    }
+
+    .chat-log::-webkit-scrollbar {
+      width: 4px;
+    }
+    .chat-log::-webkit-scrollbar-thumb {
+      background: var(--cp-cyan);
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 92%;
+      animation: fadeIn 0.18s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    .msg.talia {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+
+    .msg-meta {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .msg.user .msg-meta {
+      color: var(--cp-yellow);
+    }
+
+    .msg.talia .msg-meta {
+      color: var(--cp-cyan);
+    }
+
+    .msg-bubble {
+      padding: 8px 11px;
+      font-size: 0.88rem;
+      line-height: 1.42;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .msg.user .msg-bubble {
+      background: rgba(252, 238, 10, 0.11);
+      border: 1px solid var(--border-yellow);
+      border-right: 3px solid var(--cp-yellow);
+      color: #fff;
+    }
+
+    .msg.talia .msg-bubble {
+      background: rgba(0, 240, 255, 0.07);
+      border: 1px solid var(--border-cyan);
+      border-left: 3px solid var(--cp-cyan);
+      color: var(--text-main);
+    }
+
+    .msg.error .msg-bubble {
+      background: rgba(255, 0, 60, 0.12);
+      border: 1px solid var(--border-red);
+      border-left: 3px solid var(--cp-red);
+      color: #ff8ca5;
+    }
+
+    .tool-trace-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+    }
+
+    .tool-chip {
+      font-family: var(--font-mono);
+      font-size: 0.68rem;
+      background: rgba(184, 41, 255, 0.1);
+      border: 1px solid rgba(184, 41, 255, 0.4);
+      color: #e2a8ff;
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .tool-chip summary {
+      outline: none;
+      user-select: none;
+    }
+
+    .tool-chip pre {
+      margin-top: 5px;
+      font-size: 0.64rem;
+      color: #b7c4d6;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    /* Нижня панель вводу (текст + мікрофон) */
+    .input-bar {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-panel-solid);
+      border: 1px solid var(--border-yellow);
+      padding: 6px;
+      align-items: center;
+    }
+
+    .chat-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.88rem;
+      padding: 6px 8px;
+      outline: none;
+    }
+
+    .chat-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .voice-btn {
+      background: rgba(0, 240, 255, 0.1);
+      border: 1px solid var(--border-cyan);
+      color: var(--cp-cyan);
+      width: 40px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
+    }
+
+    .voice-btn.recording {
+      background: var(--cp-red);
+      border-color: var(--cp-red);
+      color: #fff;
+      animation: pulseRed 1s infinite;
+    }
+
+    @keyframes pulseRed {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(255, 0, 60, 0.7); }
+      50% { box-shadow: 0 0 14px 4px rgba(255, 0, 60, 0.9); }
+    }
+
+    .send-btn {
+      background: var(--cp-yellow);
+      color: #000;
+      border: none;
+      font-family: var(--font-hud);
+      font-weight: 700;
+      font-size: 0.82rem;
+      padding: 0 14px;
+      height: 38px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+      flex-shrink: 0;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="hud-shell">
+    <!-- ХЕДЕР -->
+    <header class="hud-header">
+      <div class="brand-group">
+        <div>
+          <div class="brand-title">TALIA // OS.LINK</div>
+          <div class="brand-sub" id="modelBadge">NODE: INITIALIZING...</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="ttsToggleBtn" title="Озвучення відповідей (TTS)">🔊 TTS: OFF</button>
+        <button class="icon-btn" id="cfgToggleBtn" title="Налаштування тунелю та API ключа">⚙ LINK</button>
+        <div class="status-pill" id="connPill" title="Натисніть для перевірки зв'язку">
+          <span class="status-dot"></span>
+          <span id="connText">SYNC...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ВИСУВНА ПАНЕЛЬ НАЛАШТУВАННЯ ТУНЕЛЮ ТА GEMINI KEY -->
+    <section class="config-drawer" id="configDrawer">
+      <div class="config-label">Cloudflare Tunnel / Server URL (зберігається в пам'яті телефона):</div>
+      <div class="config-row">
+        <input type="url" id="tunnelUrlInput" class="cp-input" placeholder="https://actual-hosting-gel-space.trycloudflare.com" />
+        <button class="cp-btn-sm" id="saveUrlBtn">SAVE & PING</button>
+      </div>
+      <div class="config-label">Google AI Studio API Key (опціонально — оновлення ключа на сервері):</div>
+      <div class="config-row">
+        <input type="password" id="apiKeyInput" class="cp-input" placeholder="AIza... або AQ... (залиште порожнім, якщо вже в .env)" />
+        <button class="cp-btn-sm" id="saveKeyBtn">SET KEY</button>
+      </div>
+    </section>
+
+    <!-- ЖИВА ТЕЛЕМЕТРІЯ ПК -->
+    <section class="telemetry-bar">
+      <div class="stat-card">
+        <div class="stat-label"><span>CPU</span><span id="cpuFreq">--</span></div>
+        <div class="stat-val" id="cpuLoad">--%</div>
+      </div>
+      <div class="stat-card gpu">
+        <div class="stat-label"><span>RTX 4060</span><span id="gpuFan">FAN --%</span></div>
+        <div class="stat-val" id="gpuTemp">--°C / --%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label"><span>RAM</span><span>31 GB</span></div>
+        <div class="stat-val" id="ramFree">-- GB</div>
+      </div>
+      <div class="stat-card temp">
+        <div class="stat-label"><span>DISK C:</span><span>FREE</span></div>
+        <div class="stat-val" id="diskFree">-- GB</div>
+      </div>
+    </section>
+
+    <!-- МЕДІА ТА ШВИДКІ КНОПКИ-ТРИГЕРИ -->
+    <section class="control-deck">
+      <div class="now-playing-row">
+        <div class="track-marquee" id="nowPlayingText">🎵 MEDIA: очікування даних...</div>
+        <div class="vol-badge" id="volLabel">VOL: --%</div>
+      </div>
+
+      <!-- Ряд 1: Медіа-тригери -->
+      <div class="trigger-grid">
+        <button class="cp-trigger" onclick="triggerMedia('previous')">⏮ PREV</button>
+        <button class="cp-trigger warn" onclick="triggerMedia('play_pause')">⏯ PLAY/PAUSE</button>
+        <button class="cp-trigger" onclick="triggerMedia('next')">⏭ NEXT</button>
+        <button class="cp-trigger" onclick="triggerMedia('mute')">🔇 MUTE</button>
+      </div>
+
+      <!-- Повзунок гучності -->
+      <div class="volume-row">
+        <button class="icon-btn" onclick="stepVolume(-10)">-10%</button>
+        <input type="range" min="0" max="100" value="45" class="vol-slider" id="volSlider" />
+        <button class="icon-btn" onclick="stepVolume(10)">+10%</button>
+      </div>
+
+      <!-- Ряд 2: Системні тригери -->
+      <div class="trigger-grid">
+        <button class="cp-trigger" onclick="requestSysReport()">📊 SYS STATUS</button>
+        <button class="cp-trigger warn" onclick="triggerPower('screen_off')">🖥 SCREEN OFF</button>
+        <button class="cp-trigger danger" onclick="triggerPower('lock')">🔒 LOCK PC</button>
+        <button class="cp-trigger danger" onclick="triggerPower('sleep', true)">💤 SLEEP</button>
+      </div>
+
+      <!-- Ряд 3: Синхронізація RGB (ПК + Мишка HATOR + Клавіатура AJAZZ) -->
+      <div class="trigger-grid">
+        <button class="cp-trigger" style="border-color:#00f0ff;color:#00f0ff" onclick="triggerRgb('#00F0FF','static')">💡 CYAN</button>
+        <button class="cp-trigger warn" onclick="triggerRgb('#FCEE0A','static')">💡 CYBER</button>
+        <button class="cp-trigger danger" onclick="triggerRgb('#FF003C','static')">💡 RED</button>
+        <button class="cp-trigger" style="border-color:#b829ff;color:#e2a8ff" onclick="triggerRgb('#B829FF','wave')">🌈 WAVE</button>
+      </div>
+    </section>
+
+    <!-- ТЕРМІНАЛЬНИЙ ЧАТ ІЗ ТАЛІЄЮ -->
+    <main class="terminal-window">
+      <div class="terminal-topbar">
+        <span>NETRUNNER // TERMINAL_FEED</span>
+        <span id="voiceStatus">VOICE: READY (UK-UA)</span>
+      </div>
+      <div class="chat-log" id="chatLog">
+        <div class="msg talia">
+          <div class="msg-meta">TALIA // SYSTEM INIT</div>
+          <div class="msg-bubble">Нейролінковий канал активовано. Ви можете керувати мультимедіа, звуком і живленням кнопками вище або писати / диктувати голосом будь-які команди для ПК.</div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ПАНЕЛЬ ВВОДУ (ТЕКСТ + ГОЛОС) -->
+    <form class="input-bar" id="chatForm">
+      <button type="button" class="voice-btn" id="voiceBtn" title="Голосовий ввід (Натисніть і говоріть)">🎙</button>
+      <input
+        type="text"
+        id="chatInput"
+        class="chat-input"
+        placeholder="Напиши або скажи команду Талії..."
+        autocomplete="off"
+      />
+      <button type="submit" class="send-btn" id="sendBtn">SEND ⚡</button>
+    </form>
+  </div>
+
+  <script>
+    const DEFAULT_TUNNEL_URL = "https://actual-hosting-gel-space.trycloudflare.com";
+    const STORAGE_URL_KEY = "talia_tunnel_url";
+    const STORAGE_TTS_KEY = "talia_tts_enabled";
+
+    // Якщо сторінка відкрита прямо через тунель або локально з FastAPI — беремо поточний origin за замовчуванням
+    function resolveInitialBaseUrl() {
+      const saved = localStorage.getItem(STORAGE_URL_KEY);
+      if (saved) return saved.replace(/\/+$/, "");
+      if (window.location.protocol.startsWith("http") && !window.location.host.includes("github.io")) {
+        return window.location.origin.replace(/\/+$/, "");
+      }
+      return DEFAULT_TUNNEL_URL;
+    }
+
+    let baseUrl = resolveInitialBaseUrl();
+    let ttsEnabled = localStorage.getItem(STORAGE_TTS_KEY) === "true";
+
+    const tunnelUrlInput = document.getElementById("tunnelUrlInput");
+    const apiKeyInput = document.getElementById("apiKeyInput");
+    const configDrawer = document.getElementById("configDrawer");
+    const cfgToggleBtn = document.getElementById("cfgToggleBtn");
+    const ttsToggleBtn = document.getElementById("ttsToggleBtn");
+    const connPill = document.getElementById("connPill");
+    const connText = document.getElementById("connText");
+    const modelBadge = document.getElementById("modelBadge");
+    const chatLog = document.getElementById("chatLog");
+    const chatForm = document.getElementById("chatForm");
+    const chatInput = document.getElementById("chatInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const voiceBtn = document.getElementById("voiceBtn");
+    const voiceStatus = document.getElementById("voiceStatus");
+    const volSlider = document.getElementById("volSlider");
+    const volLabel = document.getElementById("volLabel");
+
+    tunnelUrlInput.value = baseUrl;
+    updateTtsButton();
+
+    cfgToggleBtn.addEventListener("click", () => {
+      configDrawer.classList.toggle("open");
+      cfgToggleBtn.classList.toggle("active");
+    });
+
+    ttsToggleBtn.addEventListener("click", () => {
+      ttsEnabled = !ttsEnabled;
+      localStorage.setItem(STORAGE_TTS_KEY, String(ttsEnabled));
+      updateTtsButton();
+    });
+
+    function updateTtsButton() {
+      ttsToggleBtn.textContent = ttsEnabled ? "🔊 TTS: ON" : "🔊 TTS: OFF";
+      ttsToggleBtn.classList.toggle("active", ttsEnabled);
+    }
+
+    document.getElementById("saveUrlBtn").addEventListener("click", async () => {
+      const val = tunnelUrlInput.value.trim().replace(/\/+$/, "");
+      if (!val) return;
+      baseUrl = val;
+      localStorage.setItem(STORAGE_URL_KEY, baseUrl);
+      appendMessage("talia", `Тунельний вузол збережено: ${baseUrl}`);
+      await checkConnection();
+      await refreshTelemetry();
+      configDrawer.classList.remove("open");
+      cfgToggleBtn.classList.remove("active");
+    });
+
+    document.getElementById("saveKeyBtn").addEventListener("click", async () => {
+      const key = apiKeyInput.value.trim();
+      if (!key) return;
+      try {
+        const res = await fetch(`${baseUrl}/api/config/key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ api_key: key })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          apiKeyInput.value = "";
+          appendMessage("talia", `API-ключ Google AI Studio успішно оновлено на сервері (модель: ${data.model}).`);
+        } else {
+          appendMessage("error", `Помилка оновлення ключа: ${JSON.stringify(data)}`);
+        }
+      } catch (err) {
+        appendMessage("error", `Не вдалося з'єднатися з ${baseUrl}: ${err.message}`);
+      }
+    });
+
+    connPill.addEventListener("click", () => {
+      checkConnection();
+      refreshTelemetry();
+    });
+
+    async function checkConnection() {
+      const t0 = performance.now();
+      try {
+        const res = await fetch(`${baseUrl}/health`, { method: "GET" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const pingMs = Math.round(performance.now() - t0);
+        connPill.classList.add("online");
+        connText.textContent = `ONLINE ${pingMs}ms`;
+        modelBadge.textContent = `MODEL: ${(data.model || "GEMINI").toUpperCase()}`;
+        return true;
+      } catch (err) {
+        connPill.classList.remove("online");
+        connText.textContent = "OFFLINE";
+        modelBadge.textContent = "NODE: DISCONNECTED";
+        return false;
+      }
+    }
+
+    async function refreshTelemetry() {
+      try {
+        const res = await fetch(`${baseUrl}/api/stats`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const sys = data.system || {};
+        const cpu = sys.cpu || {};
+        const ram = sys.ram || {};
+        const disks = sys.disks || {};
+        const gpus = sys.gpus || [];
+
+        if (cpu.usage_percent !== undefined) {
+          document.getElementById("cpuLoad").textContent = `${cpu.usage_percent}%`;
+          document.getElementById("cpuFreq").textContent = cpu.current_freq_mhz ? `${Math.round(cpu.current_freq_mhz)}MHz` : "";
+        }
+
+        if (gpus.length > 0) {
+          const g = gpus[0];
+          document.getElementById("gpuTemp").textContent = `${g.temperature_c ?? "--"}°C / ${g.load_percent ?? "--"}%`;
+          document.getElementById("gpuFan").textContent = `FAN ${g.fan_speed_percent ?? 0}%`;
+        }
+
+        if (ram.available_gb !== undefined) {
+          document.getElementById("ramFree").textContent = `${ram.available_gb} GB`;
+        }
+
+        const cDisk = disks["C:\\"] || Object.values(disks)[0];
+        if (cDisk) {
+          document.getElementById("diskFree").textContent = `${cDisk.free_gb} GB`;
+        }
+
+        if (typeof data.volume === "number") {
+          volSlider.value = data.volume;
+          volLabel.textContent = `VOL: ${data.volume}%`;
+        }
+
+        const media = data.media || {};
+        const npEl = document.getElementById("nowPlayingText");
+        if (media.title) {
+          const icon = media.playing ? "▶" : "⏸";
+          npEl.textContent = `${icon} ${media.artist ? media.artist + " — " : ""}${media.title}`;
+        } else {
+          npEl.textContent = "🎵 MEDIA: немає активного треку";
+        }
+      } catch (_) {}
+    }
+
+    // Швидке виконання дій через /api/action
+    async function runDirectAction(tool, args, label) {
+      try {
+        const res = await fetch(`${baseUrl}/api/action`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tool, args })
+        });
+        const data = await res.json();
+        await refreshTelemetry();
+        return data;
+      } catch (err) {
+        appendMessage("error", `Помилка виконання [${label}]: ${err.message}`);
+        return null;
+      }
+    }
+
+    async function triggerMedia(action) {
+      const data = await runDirectAction("control_media", { action }, action);
+      if (data && data.success) {
+        if (action === "mute") {
+          appendMessage("talia", data.muted ? "🔇 Звук вимкнено (Mute)." : `🔊 Звук увімкнено (${data.volume_percent}%).`);
+        }
+      }
+    }
+
+    async function stepVolume(delta) {
+      const data = await runDirectAction("control_media", { action: "change_volume", value: delta }, "volume");
+      if (data && typeof data.volume_percent === "number") {
+        volSlider.value = data.volume_percent;
+        volLabel.textContent = `VOL: ${data.volume_percent}%`;
+      }
+    }
+
+    volSlider.addEventListener("change", async (e) => {
+      const targetVol = parseInt(e.target.value, 10);
+      volLabel.textContent = `VOL: ${targetVol}%`;
+      await runDirectAction("control_media", { action: "set_volume", value: targetVol }, "set_volume");
+    });
+
+    volSlider.addEventListener("input", (e) => {
+      volLabel.textContent = `VOL: ${e.target.value}%`;
+    });
+
+    async function triggerPower(action, askConfirm = false) {
+      if (askConfirm && !confirm(`Перевести комп'ютер у режим '${action.toUpperCase()}'?`)) {
+        return;
+      }
+      const data = await runDirectAction("control_system_state", { action }, action);
+      if (data && data.success) {
+        appendMessage("talia", `⚡ Виконано: ${data.message || action}`);
+      } else if (data) {
+        appendMessage("error", data.error || "Помилка виконання команди живлення.");
+      }
+    }
+
+    async function triggerRgb(color, mode = "static") {
+      const data = await runDirectAction(
+        "control_rgb_lighting",
+        { device: "all", color, mode, brightness: 100 },
+        "rgb_sync"
+      );
+      if (data && data.success) {
+        appendMessage("talia", `💡 RGB SYNC [ПК + HATOR + AJAZZ]: колір ${data.color_hex}, режим '${data.mode}'.`);
+      } else if (data) {
+        appendMessage("error", data.error || "Помилка зміни RGB підсвітки.");
+      }
+    }
+
+    async function requestSysReport() {
+      const data = await runDirectAction("get_system_stats", {}, "get_system_stats");
+      if (!data || !data.success) return;
+      const g = (data.gpus && data.gpus[0]) || {};
+      const cDisk = (data.disks && data.disks["C:\\"]) || {};
+      const report =
+        `📊 ТЕЛЕМЕТРІЯ СИСТЕМИ:\n` +
+        `• CPU: ${data.cpu?.model || "N/A"} (${data.cpu?.usage_percent}% @ ${data.cpu?.current_freq_mhz} MHz)\n` +
+        `• GPU: ${g.name || "N/A"} | Темп: ${g.temperature_c ?? "--"}°C | Кулери: ${g.fan_speed_percent ?? 0}% | Навантаження: ${g.load_percent ?? "--"}% | VRAM: ${g.vram_used_mb ?? "--"}/${g.vram_total_mb ?? "--"} MB\n` +
+        `• RAM: вільно ${data.ram?.available_gb} GB із ${data.ram?.total_gb} GB (${data.ram?.used_percent}%)\n` +
+        `• Диск C:\\: вільно ${cDisk.free_gb} GB із ${cDisk.total_gb} GB\n` +
+        `• Аптайм: ${data.uptime}`;
+      appendMessage("talia", report);
+    }
+
+    // Чат із Талією
+    function appendMessage(role, text, toolCalls = []) {
+      const wrap = document.createElement("div");
+      wrap.className = `msg ${role}`;
+
+      const meta = document.createElement("div");
+      meta.className = "msg-meta";
+      const timeStr = new Date().toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+      meta.textContent = role === "user" ? `OPERATOR // ${timeStr}` : role === "error" ? `SYS.ERR // ${timeStr}` : `TALIA // ${timeStr}`;
+      wrap.appendChild(meta);
+
+      if (toolCalls && toolCalls.length > 0) {
+        const traceList = document.createElement("div");
+        traceList.className = "tool-trace-list";
+        toolCalls.forEach((tc, i) => {
+          const details = document.createElement("details");
+          details.className = "tool-chip";
+          const summary = document.createElement("summary");
+          summary.textContent = `⚙ [TOOL #${i + 1}] ${tc.tool}(${JSON.stringify(tc.args)})`;
+          const pre = document.createElement("pre");
+          pre.textContent = JSON.stringify(tc.output, null, 2);
+          details.appendChild(summary);
+          details.appendChild(pre);
+          traceList.appendChild(details);
+        });
+        wrap.appendChild(traceList);
+      }
+
+      const bubble = document.createElement("div");
+      bubble.className = "msg-bubble";
+      bubble.textContent = text;
+      wrap.appendChild(bubble);
+
+      chatLog.appendChild(wrap);
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      if (role === "talia" && ttsEnabled && "speechSynthesis" in window) {
+        try {
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance(text);
+          utter.lang = "uk-UA";
+          utter.rate = 1.05;
+          window.speechSynthesis.speak(utter);
+        } catch (_) {}
+      }
+    }
+
+    async function sendChatMessage(messageText) {
+      const clean = messageText.trim();
+      if (!clean) return;
+
+      appendMessage("user", clean);
+      chatInput.value = "";
+      sendBtn.disabled = true;
+      sendBtn.textContent = "WAIT...";
+
+      try {
+        const res = await fetch(`${baseUrl}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: clean })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          appendMessage("error", data.detail || JSON.stringify(data));
+        } else {
+          appendMessage("talia", data.reply || "(Порожня відповідь)", data.tool_calls || []);
+          refreshTelemetry();
+        }
+      } catch (err) {
+        appendMessage("error", `Помилка зв'язку з тунелем (${baseUrl}): ${err.message}`);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "SEND ⚡";
+      }
+    }
+
+    chatForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      sendChatMessage(chatInput.value);
+    });
+
+    // Голосовий ввід (Web Speech API)
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isRecording = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = "uk-UA";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        isRecording = true;
+        voiceBtn.classList.add("recording");
+        voiceStatus.textContent = "🎙 LISTENING...";
+      };
+
+      recognition.onend = () => {
+        isRecording = false;
+        voiceBtn.classList.remove("recording");
+        voiceStatus.textContent = "VOICE: READY (UK-UA)";
+      };
+
+      recognition.onerror = (event) => {
+        isRecording = false;
+        voiceBtn.classList.remove("recording");
+        voiceStatus.textContent = `VOICE ERR: ${event.error}`;
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          chatInput.value = transcript;
+          sendChatMessage(transcript);
+        }
+      };
+
+      voiceBtn.addEventListener("click", () => {
+        if (isRecording) {
+          recognition.stop();
+        } else {
+          try {
+            recognition.start();
+          } catch (_) {}
+        }
+      });
+    } else {
+      voiceBtn.style.opacity = "0.35";
+      voiceStatus.textContent = "VOICE: UNSUPPORTED";
+      voiceBtn.addEventListener("click", () => {
+        appendMessage("error", "Ваш мобільний браузер не підтримує Web Speech API (використовуйте Chrome або Edge).");
+      });
+    }
+
+    // Початкова синхронізація та автооновлення кожні 6 секунд
+    checkConnection();
+    refreshTelemetry();
+    setInterval(() => {
+      checkConnection();
+      refreshTelemetry();
+    }, 6000);
+  </script>
+</body>
+</html>
