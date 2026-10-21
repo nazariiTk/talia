@@ -632,6 +632,10 @@
         <input type="url" id="tunnelUrlInput" class="cp-input" placeholder="https://actual-hosting-gel-space.trycloudflare.com" />
         <button class="cp-btn-sm" id="saveUrlBtn">SAVE & PING</button>
       </div>
+      <div class="config-label">Talia Access Token (TALIA_TOKEN із .env на ПК):</div>
+      <div class="config-row">
+        <input type="password" id="tokenInput" class="cp-input" placeholder="X-Talia-Token" />
+      </div>
       <div class="config-label">Google AI Studio API Key (опціонально — оновлення ключа на сервері):</div>
       <div class="config-row">
         <input type="password" id="apiKeyInput" class="cp-input" placeholder="AIza... або AQ... (залиште порожнім, якщо вже в .env)" />
@@ -727,8 +731,20 @@
   </div>
 
   <script>
-    const DEFAULT_TUNNEL_URL = "https://actual-hosting-gel-space.trycloudflare.com";
+    const DEFAULT_TUNNEL_URL = "https://talia-core.me";
     const STORAGE_URL_KEY = "talia_tunnel_url";
+    const STORAGE_TOKEN_KEY = "talia_token";
+
+    // Автоматично додаємо X-Talia-Token до всіх запитів до сервера Talia
+    const _origFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      const url = typeof input === "string" ? input : input.url;
+      const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+      if (token && typeof baseUrl !== "undefined" && url.startsWith(baseUrl)) {
+        init.headers = { ...(init.headers || {}), "X-Talia-Token": token };
+      }
+      return _origFetch(input, init);
+    };
     const STORAGE_TTS_KEY = "talia_tts_enabled";
 
     // Якщо сторінка відкрита прямо через тунель або локально з FastAPI — беремо поточний origin за замовчуванням
@@ -762,6 +778,7 @@
     const volLabel = document.getElementById("volLabel");
 
     tunnelUrlInput.value = baseUrl;
+    document.getElementById("tokenInput").value = localStorage.getItem(STORAGE_TOKEN_KEY) || "";
     updateTtsButton();
 
     cfgToggleBtn.addEventListener("click", () => {
@@ -785,6 +802,8 @@
       if (!val) return;
       baseUrl = val;
       localStorage.setItem(STORAGE_URL_KEY, baseUrl);
+      const tokVal = document.getElementById("tokenInput").value.trim();
+      if (tokVal) localStorage.setItem(STORAGE_TOKEN_KEY, tokVal);
       appendMessage("talia", `Тунельний вузол збережено: ${baseUrl}`);
       await checkConnection();
       await refreshTelemetry();
