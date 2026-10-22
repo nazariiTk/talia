@@ -603,6 +603,206 @@
       opacity: 0.45;
       cursor: not-allowed;
     }
+
+    /* -------------------------------------------------------------------------
+       2D CYBERPUNK AVATAR VIEWPORT & STATE MACHINE
+       ------------------------------------------------------------------------- */
+    .avatar-deck-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .avatar-viewport-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px;
+      position: relative;
+      flex-shrink: 0;
+      width: 145px;
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    .avatar-status-badge {
+      font-family: var(--font-mono);
+      font-size: 0.58rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--cp-cyan);
+      text-transform: uppercase;
+      padding: 2px 6px;
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      border-radius: 2px;
+      width: 100%;
+      text-align: center;
+      transition: color 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+    }
+
+    .avatar-viewport {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 735 / 851;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 55%, rgba(0, 240, 255, 0.15) 0%, rgba(6, 6, 11, 0.95) 75%);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      box-shadow: inset 0 0 12px rgba(0, 240, 255, 0.2);
+    }
+
+    .avatar-viewport img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    /* Шар 1: Підкладка (білки очей + рот) */
+    #avatarBaseLayer {
+      z-index: 1;
+    }
+
+    /* Шар 2: Зіниці */
+    #avatarPupils {
+      z-index: 2;
+      transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+      will-change: transform;
+    }
+
+    /* Шар 3: Маска (тіло, зачіска, маска з вирізами очей) */
+    #avatarMask {
+      z-index: 3;
+    }
+
+    /* Шар 4: Кіберпанк-візор (CRT scanlines, віньєтка, неонова рамка) */
+    .avatar-visor-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0, 240, 255, 0.05) 0px,
+          rgba(0, 240, 255, 0.05) 1px,
+          transparent 2px,
+          transparent 4px
+        ),
+        radial-gradient(circle at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.55) 100%);
+      box-shadow: inset 0 0 10px rgba(0, 240, 255, 0.3);
+      transition: box-shadow 0.25s ease;
+    }
+
+    /* Напрямки погляду зіниць */
+    .avatar-pupils.look-center { transform: translate(0, 0); }
+    .avatar-pupils.look-left   { transform: translate(-10px, 0); }
+    .avatar-pupils.look-right  { transform: translate(10px, 0); }
+    .avatar-pupils.look-up     { transform: translate(0, -7px); }
+    .avatar-pupils.look-down   { transform: translate(0, 6px); }
+
+    /* СТАНИ АВАТАРА */
+    /* IDLE */
+    .avatar-viewport-card.state-idle {
+      border-color: var(--border-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.15);
+    }
+
+    /* THINKING: пульсація підсвічування та сканування */
+    .avatar-viewport-card.state-thinking {
+      border-color: var(--cp-yellow);
+      box-shadow: 0 0 22px rgba(252, 238, 10, 0.45);
+      animation: thinkingPulse 1.4s infinite ease-in-out;
+    }
+    .avatar-viewport-card.state-thinking .avatar-status-badge {
+      color: var(--cp-yellow);
+      border-color: rgba(252, 238, 10, 0.5);
+      background: rgba(252, 238, 10, 0.14);
+    }
+    .avatar-viewport-card.state-thinking .avatar-visor-overlay {
+      box-shadow: inset 0 0 14px rgba(252, 238, 10, 0.5);
+    }
+
+    @keyframes thinkingPulse {
+      0%, 100% {
+        box-shadow: 0 0 12px rgba(252, 238, 10, 0.3);
+        filter: brightness(1);
+      }
+      50% {
+        box-shadow: 0 0 24px rgba(252, 238, 10, 0.65);
+        filter: brightness(1.08);
+      }
+    }
+
+    /* SPEAKING: неонове бірюзове сяйво */
+    .avatar-viewport-card.state-speaking {
+      border-color: var(--cp-cyan);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.5);
+      animation: speakingGlow 0.8s infinite alternate ease-in-out;
+    }
+    .avatar-viewport-card.state-speaking .avatar-status-badge {
+      color: var(--cp-cyan);
+      border-color: var(--cp-cyan);
+      background: rgba(0, 240, 255, 0.18);
+    }
+
+    @keyframes speakingGlow {
+      from { box-shadow: 0 0 14px rgba(0, 240, 255, 0.35); }
+      to   { box-shadow: 0 0 28px rgba(0, 240, 255, 0.7); }
+    }
+
+    /* ERROR: червоний колір + глітч-тремтіння */
+    .avatar-viewport-card.state-error {
+      border-color: var(--cp-red) !important;
+      box-shadow: 0 0 28px rgba(255, 0, 60, 0.7) !important;
+      animation: glitchJitter 0.18s infinite ease-in-out;
+    }
+    .avatar-viewport-card.state-error .avatar-status-badge {
+      color: var(--cp-red);
+      border-color: var(--cp-red);
+      background: rgba(255, 0, 60, 0.2);
+    }
+    .avatar-viewport-card.state-error .avatar-visor-overlay {
+      box-shadow: inset 0 0 16px rgba(255, 0, 60, 0.6);
+    }
+
+    @keyframes glitchJitter {
+      0%   { transform: translate(0, 0); }
+      20%  { transform: translate(-2px, 1px); }
+      40%  { transform: translate(2px, -1px); }
+      60%  { transform: translate(-1px, -2px); }
+      80%  { transform: translate(1px, 2px); }
+      100% { transform: translate(0, 0); }
+    }
+
+    /* ДЕК КЕРУВАННЯ ТА АВАТАР */
+    .deck-with-avatar {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+
+    .deck-with-avatar .control-deck {
+      flex: 1;
+      min-width: 0;
+    }
+
+    @media (max-width: 540px) {
+      .deck-with-avatar {
+        flex-direction: row;
+      }
+      .avatar-viewport-card {
+        width: 105px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -663,44 +863,61 @@
       </div>
     </section>
 
-    <!-- МЕДІА ТА ШВИДКІ КНОПКИ-ТРИГЕРИ -->
-    <section class="control-deck">
-      <div class="now-playing-row">
-        <div class="track-marquee" id="nowPlayingText">🎵 MEDIA: очікування даних...</div>
-        <div class="vol-badge" id="volLabel">VOL: --%</div>
-      </div>
+    <!-- МЕДІА ТА ШВИДКІ КНОПКИ-ТРИГЕРИ + АВАТАР ТАЛІЇ -->
+    <div class="deck-with-avatar">
+      <!-- 2D КІБЕРПАНК-АВАТАР ТАЛІЇ (LAYERED VIEWPORT) -->
+      <aside class="avatar-viewport-card state-idle" id="avatarCard" title="TALIA // 2D NEURAL AVATAR">
+        <div class="avatar-status-badge" id="avatarStateLabel">IDLE // ONLINE</div>
+        <div class="avatar-viewport">
+          <!-- Нижній шар: підкладка (білки очей + активний стан рота) -->
+          <img id="avatarBaseLayer" src="assets/avatar/mouth_idle.png" alt="Talia Face Base" />
+          <!-- Середній шар: зіниці з динамічним рухом очей -->
+          <img id="avatarPupils" class="avatar-pupils look-center" src="assets/avatar/pupils.png" alt="Talia Pupils" />
+          <!-- Верхній шар: маска-трафарет із вирізами для очей -->
+          <img id="avatarMask" src="assets/avatar/base.png" alt="Talia Head Mask" />
+          <!-- Оверлей: CRT scanlines, віньєтка та неонове бірюзово-помаранчеве світіння -->
+          <div class="avatar-visor-overlay"></div>
+        </div>
+      </aside>
 
-      <!-- Ряд 1: Медіа-тригери -->
-      <div class="trigger-grid">
-        <button class="cp-trigger" onclick="triggerMedia('previous')">⏮ PREV</button>
-        <button class="cp-trigger warn" onclick="triggerMedia('play_pause')">⏯ PLAY/PAUSE</button>
-        <button class="cp-trigger" onclick="triggerMedia('next')">⏭ NEXT</button>
-        <button class="cp-trigger" onclick="triggerMedia('mute')">🔇 MUTE</button>
-      </div>
+      <section class="control-deck">
+        <div class="now-playing-row">
+          <div class="track-marquee" id="nowPlayingText">🎵 MEDIA: очікування даних...</div>
+          <div class="vol-badge" id="volLabel">VOL: --%</div>
+        </div>
 
-      <!-- Повзунок гучності -->
-      <div class="volume-row">
-        <button class="icon-btn" onclick="stepVolume(-10)">-10%</button>
-        <input type="range" min="0" max="100" value="45" class="vol-slider" id="volSlider" />
-        <button class="icon-btn" onclick="stepVolume(10)">+10%</button>
-      </div>
+        <!-- Ряд 1: Медіа-тригери -->
+        <div class="trigger-grid">
+          <button class="cp-trigger" onclick="triggerMedia('previous')">⏮ PREV</button>
+          <button class="cp-trigger warn" onclick="triggerMedia('play_pause')">⏯ PLAY/PAUSE</button>
+          <button class="cp-trigger" onclick="triggerMedia('next')">⏭ NEXT</button>
+          <button class="cp-trigger" onclick="triggerMedia('mute')">🔇 MUTE</button>
+        </div>
 
-      <!-- Ряд 2: Системні тригери -->
-      <div class="trigger-grid">
-        <button class="cp-trigger" onclick="requestSysReport()">📊 SYS STATUS</button>
-        <button class="cp-trigger warn" onclick="triggerPower('screen_off')">🖥 SCREEN OFF</button>
-        <button class="cp-trigger danger" onclick="triggerPower('lock')">🔒 LOCK PC</button>
-        <button class="cp-trigger danger" onclick="triggerPower('sleep', true)">💤 SLEEP</button>
-      </div>
+        <!-- Повзунок гучності -->
+        <div class="volume-row">
+          <button class="icon-btn" onclick="stepVolume(-10)">-10%</button>
+          <input type="range" min="0" max="100" value="45" class="vol-slider" id="volSlider" />
+          <button class="icon-btn" onclick="stepVolume(10)">+10%</button>
+        </div>
 
-      <!-- Ряд 3: Синхронізація RGB (ПК + Мишка HATOR + Клавіатура AJAZZ) -->
-      <div class="trigger-grid">
-        <button class="cp-trigger" style="border-color:#00f0ff;color:#00f0ff" onclick="triggerRgb('#00F0FF','static')">💡 CYAN</button>
-        <button class="cp-trigger warn" onclick="triggerRgb('#FCEE0A','static')">💡 CYBER</button>
-        <button class="cp-trigger danger" onclick="triggerRgb('#FF003C','static')">💡 RED</button>
-        <button class="cp-trigger" style="border-color:#b829ff;color:#e2a8ff" onclick="triggerRgb('#B829FF','wave')">🌈 WAVE</button>
-      </div>
-    </section>
+        <!-- Ряд 2: Системні тригери -->
+        <div class="trigger-grid">
+          <button class="cp-trigger" onclick="requestSysReport()">📊 SYS STATUS</button>
+          <button class="cp-trigger warn" onclick="triggerPower('screen_off')">🖥 SCREEN OFF</button>
+          <button class="cp-trigger danger" onclick="triggerPower('lock')">🔒 LOCK PC</button>
+          <button class="cp-trigger danger" onclick="triggerPower('sleep', true)">💤 SLEEP</button>
+        </div>
+
+        <!-- Ряд 3: Синхронізація RGB (ПК + Мишка HATOR + Клавіатура AJAZZ) -->
+        <div class="trigger-grid">
+          <button class="cp-trigger" style="border-color:#00f0ff;color:#00f0ff" onclick="triggerRgb('#00F0FF','static')">💡 CYAN</button>
+          <button class="cp-trigger warn" onclick="triggerRgb('#FCEE0A','static')">💡 CYBER</button>
+          <button class="cp-trigger danger" onclick="triggerRgb('#FF003C','static')">💡 RED</button>
+          <button class="cp-trigger" style="border-color:#b829ff;color:#e2a8ff" onclick="triggerRgb('#B829FF','wave')">🌈 WAVE</button>
+        </div>
+      </section>
+    </div>
 
     <!-- ТЕРМІНАЛЬНИЙ ЧАТ ІЗ ТАЛІЄЮ -->
     <main class="terminal-window">
@@ -759,6 +976,153 @@
 
     let baseUrl = resolveInitialBaseUrl();
     let ttsEnabled = localStorage.getItem(STORAGE_TTS_KEY) === "true";
+
+    // -------------------------------------------------------------------------
+    // TALIA AVATAR CONTROLLER (STATE MACHINE)
+    // -------------------------------------------------------------------------
+    class TaliaAvatarController {
+      constructor() {
+        this.card = document.getElementById("avatarCard");
+        this.baseLayer = document.getElementById("avatarBaseLayer");
+        this.pupils = document.getElementById("avatarPupils");
+        this.stateLabel = document.getElementById("avatarStateLabel");
+
+        this.state = "IDLE"; // IDLE | THINKING | SPEAKING | ERROR
+        this.idleTimer = null;
+        this.speakTimer = null;
+        this.errorTimer = null;
+        this.smileTimer = null;
+        this.thinkingTimer = null;
+
+        // Попереднє кешування шарів для миттєвої зміни кадрів
+        this.assets = {
+          idle: "assets/avatar/mouth_idle.png",
+          speak1: "assets/avatar/mouth_speak_1.png",
+          speak2: "assets/avatar/mouth_speak_2.png",
+          smile: "assets/avatar/mouth_smile.png"
+        };
+        Object.values(this.assets).forEach((src) => {
+          const img = new Image();
+          img.src = src;
+        });
+
+        this.setIdle();
+      }
+
+      _clearTimers() {
+        if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+        if (this.speakTimer) { clearInterval(this.speakTimer); this.speakTimer = null; }
+        if (this.errorTimer) { clearTimeout(this.errorTimer); this.errorTimer = null; }
+        if (this.smileTimer) { clearTimeout(this.smileTimer); this.smileTimer = null; }
+        if (this.thinkingTimer) { clearInterval(this.thinkingTimer); this.thinkingTimer = null; }
+      }
+
+      _setClasses(stateClass, labelText) {
+        if (!this.card) return;
+        this.card.classList.remove("state-idle", "state-thinking", "state-speaking", "state-error");
+        this.card.classList.add(stateClass);
+        if (this.stateLabel) {
+          this.stateLabel.textContent = labelText;
+        }
+      }
+
+      setLook(direction) {
+        if (!this.pupils) return;
+        this.pupils.classList.remove("look-center", "look-left", "look-right", "look-up", "look-down");
+        this.pupils.classList.add(`look-${direction}`);
+      }
+
+      setIdle() {
+        this._clearTimers();
+        this.state = "IDLE";
+        this._setClasses("state-idle", "IDLE // READY");
+        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        this.setLook("center");
+        this._scheduleIdleEyeMovement();
+      }
+
+      _scheduleIdleEyeMovement() {
+        const nextDelay = Math.floor(Math.random() * (5000 - 2500 + 1)) + 2500; // 2.5 - 5 сек
+        this.idleTimer = setTimeout(() => {
+          if (this.state !== "IDLE") return;
+          const moves = ["look-left", "look-right", "look-center", "look-center", "look-down"];
+          const choice = moves[Math.floor(Math.random() * moves.length)].replace("look-", "");
+          this.setLook(choice);
+
+          // Якщо подивилася вбік, через 1.2с повертаємо погляд у центр
+          if (choice !== "center") {
+            setTimeout(() => {
+              if (this.state === "IDLE") this.setLook("center");
+            }, 1200);
+          }
+          this._scheduleIdleEyeMovement();
+        }, nextDelay);
+      }
+
+      setThinking() {
+        this._clearTimers();
+        this.state = "THINKING";
+        this._setClasses("state-thinking", "THINKING // NEURAL");
+        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        this.setLook("up");
+
+        // Сканування зіниць ліворуч-праворуч під час обробки
+        let scanToggle = false;
+        this.thinkingTimer = setInterval(() => {
+          if (this.state !== "THINKING") return;
+          this.setLook(scanToggle ? "look-left" : "look-right");
+          scanToggle = !scanToggle;
+        }, 600);
+      }
+
+      startSpeaking() {
+        this._clearTimers();
+        this.state = "SPEAKING";
+        this._setClasses("state-speaking", "TALIA // VOCALIZING");
+        this.setLook("center");
+
+        let frame = 0;
+        this.speakTimer = setInterval(() => {
+          if (this.state !== "SPEAKING") return;
+          frame = (frame + 1) % 2;
+          if (this.baseLayer) {
+            this.baseLayer.src = frame === 0 ? this.assets.speak1 : this.assets.speak2;
+          }
+        }, 130);
+      }
+
+      stopSpeaking(withSmile = true) {
+        if (this.state !== "SPEAKING") return;
+        this._clearTimers();
+
+        if (withSmile) {
+          this.state = "SMILE";
+          this._setClasses("state-idle", "TALIA // AFFIRMATIVE");
+          if (this.baseLayer) this.baseLayer.src = this.assets.smile;
+          this.setLook("center");
+
+          this.smileTimer = setTimeout(() => {
+            this.setIdle();
+          }, 1800);
+        } else {
+          this.setIdle();
+        }
+      }
+
+      setError() {
+        this._clearTimers();
+        this.state = "ERROR";
+        this._setClasses("state-error", "ERR // SYSTEM GLITCH");
+        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        this.setLook("center");
+
+        this.errorTimer = setTimeout(() => {
+          this.setIdle();
+        }, 2200);
+      }
+    }
+
+    const avatarController = new TaliaAvatarController();
 
     const tunnelUrlInput = document.getElementById("tunnelUrlInput");
     const apiKeyInput = document.getElementById("apiKeyInput");
@@ -1018,20 +1382,47 @@
 
       const bubble = document.createElement("div");
       bubble.className = "msg-bubble";
-      bubble.textContent = text;
       wrap.appendChild(bubble);
 
       chatLog.appendChild(wrap);
       chatLog.scrollTop = chatLog.scrollHeight;
 
-      if (role === "talia" && ttsEnabled && "speechSynthesis" in window) {
-        try {
-          window.speechSynthesis.cancel();
-          const utter = new SpeechSynthesisUtterance(text);
-          utter.lang = "uk-UA";
-          utter.rate = 1.05;
-          window.speechSynthesis.speak(utter);
-        } catch (_) {}
+      if (role === "talia") {
+        avatarController.startSpeaking();
+
+        if (ttsEnabled && "speechSynthesis" in window) {
+          try {
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = "uk-UA";
+            utter.rate = 1.05;
+            window.speechSynthesis.speak(utter);
+          } catch (_) {}
+        }
+
+        // Ефект друкарської машинки (Typewriter)
+        let idx = 0;
+        const speed = text.length > 200 ? 12 : 22; // динамічна швидкість друку
+        function typeNext() {
+          if (idx < text.length) {
+            // Друкуємо по 1-3 символи за крок для плавності
+            const step = text.length > 250 ? 3 : 1;
+            bubble.textContent += text.substr(idx, step);
+            idx += step;
+            chatLog.scrollTop = chatLog.scrollHeight;
+            setTimeout(typeNext, speed);
+          } else {
+            bubble.textContent = text;
+            chatLog.scrollTop = chatLog.scrollHeight;
+            avatarController.stopSpeaking(true); // завершуємо посмішкою на 1.8с
+          }
+        }
+        typeNext();
+      } else {
+        bubble.textContent = text;
+        if (role === "error") {
+          avatarController.setError();
+        }
       }
     }
 
@@ -1044,6 +1435,8 @@
       sendBtn.disabled = true;
       sendBtn.textContent = "WAIT...";
 
+      avatarController.setThinking();
+
       try {
         const res = await fetch(`${baseUrl}/api/chat`, {
           method: "POST",
@@ -1052,12 +1445,14 @@
         });
         const data = await res.json();
         if (!res.ok) {
+          avatarController.setError();
           appendMessage("error", data.detail || JSON.stringify(data));
         } else {
           appendMessage("talia", data.reply || "(Порожня відповідь)", data.tool_calls || []);
           refreshTelemetry();
         }
       } catch (err) {
+        avatarController.setError();
         appendMessage("error", `Помилка зв'язку з тунелем (${baseUrl}): ${err.message}`);
       } finally {
         sendBtn.disabled = false;
