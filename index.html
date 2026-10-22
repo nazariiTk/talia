@@ -286,6 +286,92 @@
       gap: 7px;
     }
 
+    /* Селектор джерела звуку / Active Audio Source */
+    .source-selector-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.22);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .source-selector-bar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .source-selector-label {
+      font-family: var(--font-mono);
+      font-size: 0.60rem;
+      font-weight: 700;
+      color: var(--cp-yellow);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+
+    .source-pills {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .source-pills::-webkit-scrollbar {
+      display: none;
+    }
+
+    .source-pill {
+      background: rgba(0, 240, 255, 0.06);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      color: var(--text-dim);
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      font-weight: 600;
+      padding: 3px 7px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      clip-path: polygon(0 0, calc(100% - 5px) 0, 100% 5px, 100% 100%, 0 100%);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .source-pill:hover {
+      border-color: var(--cp-cyan);
+      color: var(--text-main);
+    }
+
+    .source-pill.active {
+      background: rgba(252, 238, 10, 0.16);
+      border-color: var(--cp-yellow);
+      color: var(--cp-yellow);
+      box-shadow: 0 0 10px rgba(252, 238, 10, 0.35);
+      font-weight: 700;
+    }
+
+    .source-pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      flex-shrink: 0;
+    }
+
+    .source-pill.active .source-pill-dot {
+      background: var(--cp-yellow);
+      box-shadow: 0 0 5px var(--cp-yellow);
+    }
+
+    .source-pill.playing .source-pill-dot {
+      background: var(--cp-green) !important;
+      box-shadow: 0 0 6px var(--cp-green) !important;
+    }
+
     .now-playing-row {
       display: flex;
       align-items: center;
@@ -1173,6 +1259,17 @@
       </aside>
 
       <section class="control-deck">
+        <!-- СЕЛЕКТОР ДЖЕРЕЛА ВИВОДУ / АКТИВНОЇ АУДІОСЕСІЇ -->
+        <div class="source-selector-bar" id="sourceSelectorBar">
+          <span class="source-selector-label">SRC:</span>
+          <div class="source-pills" id="sourcePills">
+            <button class="source-pill active" data-target="master" onclick="selectAudioSource('master')">
+              <span class="source-pill-dot"></span>
+              <span>🔊 MASTER</span>
+            </button>
+          </div>
+        </div>
+
         <div class="now-playing-row">
           <div class="track-marquee" id="nowPlayingText">🎵 MEDIA: очікування даних...</div>
           <div class="vol-badge" id="volLabel">VOL: --%</div>
@@ -1572,11 +1669,132 @@
       }
     }
 
+    let currentAudioSource = "master";
+    let lastTelemetryData = null;
+
+    function selectAudioSource(targetKey) {
+      currentAudioSource = targetKey;
+      renderSourcePills();
+      updateDeckForCurrentSource();
+    }
+
+    function renderSourcePills() {
+      const container = document.getElementById("sourcePills");
+      if (!container) return;
+
+      const pills = [
+        { id: "master", name: "MASTER", icon: "🔊", isPlaying: Boolean(lastTelemetryData?.media?.playing) }
+      ];
+
+      const seenKeys = new Set(["master"]);
+
+      // 1. Джерела з медіа-сесій GSMTC (YouTube Music, Chrome, Spotify...)
+      const mediaSources = lastTelemetryData?.media_sources || [];
+      for (const ms of mediaSources) {
+        const key = ms.target_key;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          pills.push({
+            id: key,
+            name: ms.display_name.toUpperCase(),
+            icon: ms.icon || "🎵",
+            isPlaying: Boolean(ms.playing),
+          });
+        }
+      }
+
+      // 2. Джерела з Core Audio sessions (якщо вони відтворюють або регулюють звук)
+      const audioSessions = lastTelemetryData?.audio_sessions || [];
+      for (const as of audioSessions) {
+        const key = as.target_key;
+        if (!seenKeys.has(key) && key !== "system") {
+          seenKeys.add(key);
+          let icon = "🔊";
+          if (key === "yt_music") icon = "🎵";
+          else if (key.includes("chrome")) icon = "🌐";
+          else if (key.includes("discord")) icon = "💬";
+          else if (key.includes("spotify")) icon = "🎧";
+          else if (key.includes("steam")) icon = "🎮";
+
+          pills.push({
+            id: key,
+            name: as.display_name.toUpperCase(),
+            icon: icon,
+            isPlaying: false,
+          });
+        }
+      }
+
+      // Якщо активний ключ більше не існує серед сесій, скидаємо на master
+      if (!seenKeys.has(currentAudioSource)) {
+        currentAudioSource = "master";
+      }
+
+      container.innerHTML = pills.map((p) => {
+        const isActive = p.id === currentAudioSource;
+        const isPlaying = p.isPlaying;
+        return `
+          <button class="source-pill ${isActive ? 'active' : ''} ${isPlaying ? 'playing' : ''}"
+                  data-target="${p.id}"
+                  onclick="selectAudioSource('${p.id}')">
+            <span class="source-pill-dot"></span>
+            <span>${p.icon} ${p.name}</span>
+          </button>
+        `;
+      }).join("");
+    }
+
+    function updateDeckForCurrentSource() {
+      if (!lastTelemetryData) return;
+
+      const npEl = document.getElementById("nowPlayingText");
+      const volSlider = document.getElementById("volSlider");
+      const volLabel = document.getElementById("volLabel");
+
+      if (currentAudioSource === "master") {
+        if (typeof lastTelemetryData.volume === "number") {
+          volSlider.value = lastTelemetryData.volume;
+          volLabel.textContent = `VOL: ${lastTelemetryData.volume}%`;
+        }
+        const media = lastTelemetryData.media || {};
+        if (media.title) {
+          const icon = media.playing ? "▶" : "⏸";
+          npEl.textContent = `${icon} ${media.artist ? media.artist + " — " : ""}${media.title}`;
+        } else {
+          npEl.textContent = "🎵 MASTER: немає активного треку";
+        }
+        return;
+      }
+
+      // Якщо обрано конкретний додаток (YouTube Music, Chrome, Discord тощо)
+      const mediaSources = lastTelemetryData.media_sources || [];
+      const audioSessions = lastTelemetryData.audio_sessions || [];
+
+      // Знаходимо аудіосесію для рівня гучності
+      const audio = audioSessions.find(a => a.target_key === currentAudioSource);
+      if (audio && typeof audio.volume === "number") {
+        volSlider.value = audio.volume;
+        volLabel.textContent = `VOL: ${audio.volume}%${audio.muted ? ' (MUTED)' : ''}`;
+      }
+
+      // Знаходимо медіасесію для назви треку
+      const ms = mediaSources.find(m => m.target_key === currentAudioSource);
+      if (ms && ms.title) {
+        const icon = ms.playing ? "▶" : "⏸";
+        npEl.textContent = `${icon} ${ms.icon || ''} ${ms.display_name.toUpperCase()}: ${ms.artist ? ms.artist + ' — ' : ''}${ms.title}`;
+      } else if (audio) {
+        npEl.textContent = `${audio.display_name.toUpperCase()}: активне аудіо`;
+      } else {
+        npEl.textContent = `${currentAudioSource.toUpperCase()}: очікування`;
+      }
+    }
+
     async function refreshTelemetry() {
       try {
         const res = await fetch(`${baseUrl}/api/stats`);
         if (!res.ok) return;
         const data = await res.json();
+        lastTelemetryData = data;
 
         const sys = data.system || {};
         const cpu = sys.cpu || {};
@@ -1604,19 +1822,8 @@
           document.getElementById("diskFree").textContent = `${cDisk.free_gb} GB`;
         }
 
-        if (typeof data.volume === "number") {
-          volSlider.value = data.volume;
-          volLabel.textContent = `VOL: ${data.volume}%`;
-        }
-
-        const media = data.media || {};
-        const npEl = document.getElementById("nowPlayingText");
-        if (media.title) {
-          const icon = media.playing ? "▶" : "⏸";
-          npEl.textContent = `${icon} ${media.artist ? media.artist + " — " : ""}${media.title}`;
-        } else {
-          npEl.textContent = "🎵 MEDIA: немає активного треку";
-        }
+        renderSourcePills();
+        updateDeckForCurrentSource();
       } catch (_) {}
     }
 
@@ -1638,7 +1845,7 @@
     }
 
     async function triggerMedia(action) {
-      const data = await runDirectAction("control_media", { action }, action);
+      const data = await runDirectAction("control_media", { action, target: currentAudioSource }, action);
       if (data && data.success) {
         if (action === "mute") {
           appendMessage("talia", data.muted ? "🔇 Звук вимкнено (Mute)." : `🔊 Звук увімкнено (${data.volume_percent}%).`);
@@ -1647,8 +1854,11 @@
     }
 
     async function stepVolume(delta) {
-      const data = await runDirectAction("control_media", { action: "change_volume", value: delta }, "volume");
-      if (data && typeof data.volume_percent === "number") {
+      const data = await runDirectAction("control_media", { action: "change_volume", value: delta, target: currentAudioSource }, "volume");
+      if (data && typeof data.volume === "number") {
+        volSlider.value = data.volume;
+        volLabel.textContent = `VOL: ${data.volume}%`;
+      } else if (data && typeof data.volume_percent === "number") {
         volSlider.value = data.volume_percent;
         volLabel.textContent = `VOL: ${data.volume_percent}%`;
       }
@@ -1657,10 +1867,12 @@
     volSlider.addEventListener("change", async (e) => {
       const targetVol = parseInt(e.target.value, 10);
       volLabel.textContent = `VOL: ${targetVol}%`;
-      await runDirectAction("control_media", { action: "set_volume", value: targetVol }, "set_volume");
+      await runDirectAction("control_media", { action: "set_volume", value: targetVol, target: currentAudioSource }, "set_volume");
     });
 
     volSlider.addEventListener("input", (e) => {
+      volLabel.textContent = `VOL: ${e.target.value}%`;
+    });
       volLabel.textContent = `VOL: ${e.target.value}%`;
     });
 
