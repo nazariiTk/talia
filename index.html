@@ -692,7 +692,12 @@
       user-select: none;
       mix-blend-mode: screen;
       filter: drop-shadow(0 0 6px rgba(255, 100, 50, 0.65));
-      transition: opacity 0.15s ease;
+      opacity: 0;
+      transition: opacity 0.22s ease-in-out;
+    }
+
+    #avatarMouthLayer.visible {
+      opacity: 1;
     }
 
     /* Шар 5: Кіберпанк-візор (CRT scanlines, віньєтка, неонова рамка) */
@@ -1004,6 +1009,7 @@
 
         this.state = "IDLE"; // IDLE | THINKING | SPEAKING | ERROR | SMILE
         this.idleTimer = null;
+        this.idleMouthTimer = null;
         this.speakTimer = null;
         this.errorTimer = null;
         this.smileTimer = null;
@@ -1027,6 +1033,7 @@
 
       _clearTimers() {
         if (this.idleTimer) { clearTimeout(this.idleTimer); this.idleTimer = null; }
+        if (this.idleMouthTimer) { clearTimeout(this.idleMouthTimer); this.idleMouthTimer = null; }
         if (this.speakTimer) { clearInterval(this.speakTimer); this.speakTimer = null; }
         if (this.errorTimer) { clearTimeout(this.errorTimer); this.errorTimer = null; }
         if (this.smileTimer) { clearTimeout(this.smileTimer); this.smileTimer = null; }
@@ -1051,10 +1058,41 @@
       setIdle() {
         this._clearTimers();
         this.state = "IDLE";
-        this._setClasses("state-idle", "IDLE // READY");
-        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
+        this._setClasses("state-idle", "IDLE // MASKED");
         this.setLook("center");
+        // За замовчуванням у режимі IDLE маска завжди ЗАКРИТА (рот схований)
+        this._hideMouth();
         this._scheduleIdleEyeMovement();
+        this._scheduleIdleMouthGlance();
+      }
+
+      _showMouth(src) {
+        if (!this.mouthLayer) return;
+        if (src) this.mouthLayer.src = src;
+        this.mouthLayer.classList.add("visible");
+      }
+
+      _hideMouth() {
+        if (!this.mouthLayer) return;
+        this.mouthLayer.classList.remove("visible");
+      }
+
+      _scheduleIdleMouthGlance() {
+        // У режимі спокою маска закрита, але кожні 6–12 секунд вона коротко відкриває її (на 1.2–2 сек)
+        const nextDelay = Math.floor(Math.random() * (12000 - 6000 + 1)) + 6000;
+        this.idleMouthTimer = setTimeout(() => {
+          if (this.state !== "IDLE") return;
+          this._showMouth(this.assets.idle);
+
+          const openDuration = Math.floor(Math.random() * (2000 - 1200 + 1)) + 1200;
+          setTimeout(() => {
+            if (this.state === "IDLE") {
+              this._hideMouth();
+            }
+          }, openDuration);
+
+          this._scheduleIdleMouthGlance();
+        }, nextDelay);
       }
 
       _scheduleIdleEyeMovement() {
@@ -1078,7 +1116,7 @@
         this._clearTimers();
         this.state = "THINKING";
         this._setClasses("state-thinking", "THINKING // NEURAL");
-        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
+        this._showMouth(this.assets.idle);
         this.setLook("up");
 
         let scanToggle = false;
@@ -1094,9 +1132,9 @@
         this.state = "SPEAKING";
         this._setClasses("state-speaking", "TALIA // VOCALIZING");
         this.setLook("center");
+        this._showMouth(this.assets.speak1);
 
         let frame = 0;
-        if (this.mouthLayer) this.mouthLayer.src = this.assets.speak1;
         this.speakTimer = setInterval(() => {
           if (this.state !== "SPEAKING") return;
           frame = (frame + 1) % 2;
@@ -1113,7 +1151,7 @@
         if (withSmile) {
           this.state = "SMILE";
           this._setClasses("state-idle", "TALIA // AFFIRMATIVE");
-          if (this.mouthLayer) this.mouthLayer.src = this.assets.smile;
+          this._showMouth(this.assets.smile);
           this.setLook("center");
 
           this.smileTimer = setTimeout(() => {
@@ -1128,7 +1166,7 @@
         this._clearTimers();
         this.state = "ERROR";
         this._setClasses("state-error", "ERR // SYSTEM GLITCH");
-        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
+        this._showMouth(this.assets.idle);
         this.setLook("center");
 
         this.errorTimer = setTimeout(() => {
