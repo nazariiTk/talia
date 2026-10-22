@@ -2,7 +2,7 @@
 <html lang="uk">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
   <meta name="theme-color" content="#07070c" />
   <title>TALIA // NETRUNNER HUD v0.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,10 +37,12 @@
     html, body {
       width: 100%;
       height: 100dvh;
+      height: var(--vvh, 100dvh);
       background-color: var(--bg-dark);
       color: var(--text-main);
       font-family: var(--font-hud);
       overflow: hidden;
+      overscroll-behavior: none;
       background-image:
         radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.09) 0%, transparent 55%),
         radial-gradient(circle at 90% 100%, rgba(255, 0, 60, 0.08) 0%, transparent 50%),
@@ -68,6 +70,7 @@
       display: flex;
       flex-direction: column;
       height: 100dvh;
+      height: var(--vvh, 100dvh);
       max-width: 760px;
       margin: 0 auto;
       padding: 8px 10px env(safe-area-inset-bottom, 8px);
@@ -940,12 +943,155 @@
       min-width: 0;
     }
 
+    /* МОБІЛЬНІ СТИЛІ ТА ВІРТУАЛЬНА КЛАВІАТУРА */
     @media (max-width: 540px) {
+      .hud-shell {
+        padding: 5px 6px env(safe-area-inset-bottom, 5px);
+        gap: 5px;
+      }
+      .brand-title {
+        font-size: 1.05rem;
+      }
+      .brand-sub {
+        font-size: 0.62rem;
+      }
+      .icon-btn {
+        padding: 3px 6px;
+        font-size: 0.66rem;
+      }
+      .status-pill {
+        padding: 3px 6px;
+        font-size: 0.64rem;
+      }
+      .telemetry-bar {
+        gap: 4px;
+      }
+      .stat-card {
+        padding: 3px 5px;
+      }
+      .stat-label {
+        font-size: 0.56rem;
+      }
+      .stat-val {
+        font-size: 0.76rem;
+      }
+      .control-deck {
+        padding: 6px 8px;
+        gap: 5px;
+      }
+      .now-playing-row {
+        font-size: 0.68rem;
+        padding-bottom: 3px;
+      }
+      .trigger-grid {
+        gap: 4px;
+      }
+      .cp-trigger {
+        font-size: 0.68rem;
+        padding: 6px 2px;
+      }
       .deck-with-avatar {
         flex-direction: row;
+        gap: 6px;
       }
       .avatar-viewport-card {
-        width: 105px;
+        width: 100px;
+      }
+      .chat-input {
+        font-size: 16px; /* Запобігає примусовому масштабуванню/зуму на iOS Safari */
+      }
+    }
+
+    /* РЕЖИМ ВІДКРИТОЇ КЛАВІАТУРИ: АВАТАР ЗАВЖДИ ЗАЛИШАЄТЬСЯ НА ЕКРАНІ */
+    body.keyboard-open .telemetry-bar,
+    body.keyboard-open .control-deck,
+    body.keyboard-open .audio-matrix-drawer,
+    body.keyboard-open .config-drawer {
+      display: none !important;
+    }
+
+    body.keyboard-open .hud-shell {
+      padding: 3px 6px env(safe-area-inset-bottom, 3px);
+      gap: 4px;
+      height: 100% !important;
+      max-height: var(--vvh, 100dvh);
+      overflow: hidden;
+    }
+
+    body.keyboard-open .hud-header {
+      padding: 3px 8px;
+      box-shadow: none;
+    }
+
+    body.keyboard-open .brand-title {
+      font-size: 0.95rem;
+    }
+
+    body.keyboard-open .brand-sub {
+      display: none;
+    }
+
+    body.keyboard-open .deck-with-avatar {
+      display: flex !important;
+      justify-content: center;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      flex-shrink: 0;
+    }
+
+    body.keyboard-open .avatar-viewport-card {
+      width: 74px !important;
+      max-height: 86px !important;
+      padding: 2px !important;
+      margin: 0 auto;
+      border-width: 1px;
+      box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+    }
+
+    body.keyboard-open .avatar-viewport {
+      width: 100%;
+      aspect-ratio: 735 / 851;
+    }
+
+    body.keyboard-open .terminal-window {
+      flex: 1;
+      min-height: 85px;
+    }
+
+    body.keyboard-open .chat-log {
+      padding: 6px;
+      gap: 6px;
+    }
+
+    body.keyboard-open .input-bar {
+      padding: 4px;
+    }
+
+    body.keyboard-open .voice-btn,
+    body.keyboard-open .send-btn {
+      height: 34px;
+    }
+
+    /* Додатковий фолбек для дуже низьких екранів */
+    @media (max-height: 480px) and (max-width: 768px) {
+      .telemetry-bar,
+      .control-deck,
+      .audio-matrix-drawer,
+      .config-drawer {
+        display: none !important;
+      }
+      .deck-with-avatar {
+        justify-content: center;
+      }
+      .avatar-viewport-card {
+        width: 74px !important;
+        max-height: 86px !important;
+        padding: 2px !important;
+      }
+      .terminal-window {
+        flex: 1;
+        min-height: 80px;
       }
     }
   </style>
@@ -1055,13 +1201,7 @@
           <button class="cp-trigger danger" onclick="triggerPower('sleep', true)">💤 SLEEP</button>
         </div>
 
-        <!-- Ряд 3: Синхронізація RGB (ПК + Мишка HATOR + Клавіатура AJAZZ) -->
-        <div class="trigger-grid">
-          <button class="cp-trigger" style="border-color:#00f0ff;color:#00f0ff" onclick="triggerRgb('#00F0FF','static')">💡 CYAN</button>
-          <button class="cp-trigger warn" onclick="triggerRgb('#FCEE0A','static')">💡 CYBER</button>
-          <button class="cp-trigger danger" onclick="triggerRgb('#FF003C','static')">💡 RED</button>
-          <button class="cp-trigger" style="border-color:#b829ff;color:#e2a8ff" onclick="triggerRgb('#B829FF','wave')">🌈 WAVE</button>
-        </div>
+
       </section>
     </div>
 
@@ -1845,6 +1985,69 @@
         return null;
       }
     }
+
+    // -------------------------------------------------------------------------
+    // МОБІЛЬНА ОПТИМІЗАЦІЯ ТА АВТОМАТИЧНЕ ПРИСТОСУВАННЯ ДО ВІРТУАЛЬНОЇ КЛАВІАТУРИ
+    // -------------------------------------------------------------------------
+    function handleViewportChange() {
+      if (window.visualViewport) {
+        const vvHeight = window.visualViewport.height;
+        document.documentElement.style.setProperty("--vvh", `${vvHeight}px`);
+
+        // Якщо висота візуального в'юпорта істотно менша за повну висоту вікна — відкрито клавіатуру
+        const isKeyboard = window.innerWidth <= 768 && (window.innerHeight - vvHeight > 120);
+        document.body.classList.toggle("keyboard-open", isKeyboard);
+
+        if (isKeyboard) {
+          window.scrollTo(0, 0);
+          document.body.scrollTop = 0;
+          const chatLog = document.getElementById("chatLog");
+          if (chatLog) {
+            chatLog.scrollTop = chatLog.scrollHeight;
+          }
+        }
+      }
+    }
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+      window.visualViewport.addEventListener("scroll", () => {
+        if (document.body.classList.contains("keyboard-open")) {
+          window.scrollTo(0, 0);
+        }
+      });
+    }
+    window.addEventListener("resize", handleViewportChange);
+
+    // Додаткові тригери для поля вводу
+    const chatInputElem = document.getElementById("chatInput");
+    if (chatInputElem) {
+      chatInputElem.addEventListener("focus", () => {
+        if (window.innerWidth <= 768) {
+          document.body.classList.add("keyboard-open");
+          setTimeout(() => {
+            window.scrollTo(0, 0);
+            document.body.scrollTop = 0;
+            const chatLog = document.getElementById("chatLog");
+            if (chatLog) {
+              chatLog.scrollTop = chatLog.scrollHeight;
+            }
+          }, 60);
+        }
+      });
+
+      chatInputElem.addEventListener("blur", () => {
+        setTimeout(() => {
+          if (!chatInputElem.matches(":focus")) {
+            if (!window.visualViewport || (window.innerHeight - window.visualViewport.height <= 120)) {
+              document.body.classList.remove("keyboard-open");
+            }
+          }
+        }, 100);
+      });
+    }
+
+    handleViewportChange();
 
     // Початкова синхронізація та автооновлення кожні 6 секунд
     checkConnection();
