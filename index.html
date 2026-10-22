@@ -391,6 +391,134 @@
       cursor: pointer;
     }
 
+    /* Віджет AUDIO MATRIX / SESSIONS */
+    .audio-matrix-drawer {
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px 10px;
+      background: rgba(10, 11, 18, 0.95);
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 0 16px rgba(0, 240, 255, 0.12);
+      clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+      animation: fadeIn 0.15s ease-out;
+    }
+
+    .audio-matrix-drawer.open {
+      display: flex;
+    }
+
+    .audio-matrix-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 0.65rem;
+      color: var(--cp-cyan);
+      letter-spacing: 1px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed rgba(0, 240, 255, 0.25);
+    }
+
+    .audio-session-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 160px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .audio-session-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(14, 15, 24, 0.85);
+      border: 1px solid rgba(0, 240, 255, 0.2);
+      padding: 4px 8px;
+    }
+
+    .audio-app-info {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 125px;
+      flex-shrink: 0;
+    }
+
+    .audio-app-name {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-main);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .audio-app-vol {
+      font-family: var(--font-mono);
+      font-size: 0.62rem;
+      color: var(--cp-yellow);
+      width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .audio-session-slider {
+      flex: 1;
+      min-width: 60px;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      background: #1a1d2e;
+      border: 1px solid rgba(0, 240, 255, 0.35);
+      outline: none;
+    }
+
+    .audio-session-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--cp-cyan);
+      border: 1px solid #000;
+      box-shadow: 0 0 6px var(--cp-cyan);
+      cursor: pointer;
+    }
+
+    .audio-mute-btn {
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-dim);
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+
+    .audio-mute-led {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cp-green);
+      box-shadow: 0 0 4px var(--cp-green);
+    }
+
+    .audio-mute-btn.muted {
+      border-color: var(--cp-red);
+      color: var(--cp-red);
+      background: rgba(255, 0, 60, 0.12);
+    }
+
+    .audio-mute-btn.muted .audio-mute-led {
+      background: var(--cp-red);
+      box-shadow: 0 0 6px var(--cp-red);
+    }
+
     /* Термінальний чат із Talia */
     .terminal-window {
       flex: 1;
@@ -909,7 +1037,7 @@
           <button class="cp-trigger" onclick="triggerMedia('previous')">⏮ PREV</button>
           <button class="cp-trigger warn" onclick="triggerMedia('play_pause')">⏯ PLAY/PAUSE</button>
           <button class="cp-trigger" onclick="triggerMedia('next')">⏭ NEXT</button>
-          <button class="cp-trigger" onclick="triggerMedia('mute')">🔇 MUTE</button>
+          <button class="cp-trigger" id="audioMatrixToggleBtn" title="Мікшер окремих додатків (YouTube Music, Chrome, Discord тощо)">🎛 MIXER</button>
         </div>
 
         <!-- Повзунок гучності -->
@@ -936,6 +1064,17 @@
         </div>
       </section>
     </div>
+
+    <!-- КІБЕРДЕКОВИЙ ВІДЖЕТ AUDIO MATRIX / PER-APP SESSIONS -->
+    <section class="audio-matrix-drawer" id="audioMatrixDrawer">
+      <div class="audio-matrix-header">
+        <span>AUDIO MATRIX // ACTIVE SESSIONS</span>
+        <span id="audioMatrixRefreshBtn" style="cursor:pointer;color:var(--cp-yellow)" title="Оновити список">🔄 REFRESH</span>
+      </div>
+      <div class="audio-session-list" id="audioSessionList">
+        <div style="font-size:0.7rem;color:var(--text-dim);padding:6px">Сканування аудіосесій...</div>
+      </div>
+    </section>
 
     <!-- ТЕРМІНАЛЬНИЙ ЧАТ ІЗ ТАЛІЄЮ -->
     <main class="terminal-window">
@@ -1592,12 +1731,130 @@
       });
     }
 
+    // -------------------------------------------------------------------------
+    // AUDIO MATRIX (PER-APP SESSIONS MIXER)
+    // -------------------------------------------------------------------------
+    const audioMatrixDrawer = document.getElementById("audioMatrixDrawer");
+    const audioMatrixToggleBtn = document.getElementById("audioMatrixToggleBtn");
+    const audioMatrixRefreshBtn = document.getElementById("audioMatrixRefreshBtn");
+    const audioSessionList = document.getElementById("audioSessionList");
+    let isMatrixOpen = false;
+
+    if (audioMatrixToggleBtn) {
+      audioMatrixToggleBtn.addEventListener("click", () => {
+        isMatrixOpen = !isMatrixOpen;
+        audioMatrixDrawer.classList.toggle("open", isMatrixOpen);
+        audioMatrixToggleBtn.classList.toggle("active", isMatrixOpen);
+        if (isMatrixOpen) {
+          fetchAudioSessions();
+        }
+      });
+    }
+
+    if (audioMatrixRefreshBtn) {
+      audioMatrixRefreshBtn.addEventListener("click", () => {
+        fetchAudioSessions();
+      });
+    }
+
+    async function fetchAudioSessions() {
+      try {
+        const res = await fetch(`${baseUrl}/api/audio/sessions`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const sessions = await res.json();
+        renderAudioSessions(sessions);
+      } catch (err) {
+        audioSessionList.innerHTML = `<div style="font-size:0.68rem;color:var(--cp-red);padding:6px">Помилка завантаження аудіосесій: ${err.message}</div>`;
+      }
+    }
+
+    function renderAudioSessions(sessions) {
+      if (!sessions || sessions.length === 0) {
+        audioSessionList.innerHTML = `<div style="font-size:0.68rem;color:var(--text-dim);padding:6px">Немає активних аудіосесій</div>`;
+        return;
+      }
+
+      audioSessionList.innerHTML = "";
+      sessions.forEach((s) => {
+        const item = document.createElement("div");
+        item.className = "audio-session-item";
+
+        // Іконка для відомих програм
+        let icon = "🔊";
+        const key = (s.target_key || "").toLowerCase();
+        if (key === "yt_music") icon = "🎵";
+        else if (key.includes("chrome")) icon = "🌐";
+        else if (key.includes("discord")) icon = "💬";
+        else if (key.includes("spotify")) icon = "🎧";
+        else if (key.includes("telegram")) icon = "✈️";
+        else if (key.includes("steam")) icon = "🎮";
+
+        item.innerHTML = `
+          <div class="audio-app-info" title="${s.name} (PID: ${s.pid || 'N/A'})">
+            <span>${icon}</span>
+            <span class="audio-app-name">${s.display_name}</span>
+          </div>
+          <input type="range" min="0" max="100" value="${s.volume}" class="audio-session-slider" data-target="${s.target_key}" />
+          <div class="audio-app-vol">${s.volume}%</div>
+          <button class="audio-mute-btn ${s.muted ? 'muted' : ''}" data-target="${s.target_key}">
+            <span class="audio-mute-led"></span>
+            <span>${s.muted ? 'MUTED' : 'MUTE'}</span>
+          </button>
+        `;
+
+        const slider = item.querySelector(".audio-session-slider");
+        const volText = item.querySelector(".audio-app-vol");
+        const muteBtn = item.querySelector(".audio-mute-btn");
+
+        slider.addEventListener("input", (e) => {
+          volText.textContent = `${e.target.value}%`;
+        });
+
+        slider.addEventListener("change", async (e) => {
+          const val = parseInt(e.target.value, 10);
+          await controlPerAppVolume(s.target_key, val, null);
+        });
+
+        muteBtn.addEventListener("click", async () => {
+          const willMute = !muteBtn.classList.contains("muted");
+          const res = await controlPerAppVolume(s.target_key, null, willMute);
+          if (res && res.success) {
+            muteBtn.classList.toggle("muted", willMute);
+            muteBtn.querySelector("span:last-child").textContent = willMute ? "MUTED" : "MUTE";
+          }
+        });
+
+        audioSessionList.appendChild(item);
+      });
+    }
+
+    async function controlPerAppVolume(target, volume, mute) {
+      try {
+        const body = { target };
+        if (volume !== null && volume !== undefined) body.volume = volume;
+        if (mute !== null && mute !== undefined) body.mute = mute;
+
+        const res = await fetch(`${baseUrl}/api/audio/control`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        return await res.json();
+      } catch (err) {
+        console.error("Audio control error:", err);
+        return null;
+      }
+    }
+
     // Початкова синхронізація та автооновлення кожні 6 секунд
     checkConnection();
     refreshTelemetry();
     setInterval(() => {
       checkConnection();
       refreshTelemetry();
+      if (isMatrixOpen) {
+        fetchAudioSessions();
+      }
     }, 6000);
   </script>
 </body>
