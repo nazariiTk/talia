@@ -1180,9 +1180,124 @@
         min-height: 80px;
       }
     }
+    /* -------------------------------------------------------------------------
+       CYBERPUNK MATRIX SPLASH SCREEN (HOT PINK DIGITAL RAIN -> ASCII PORTRAIT)
+       ------------------------------------------------------------------------- */
+    .talia-splash {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      height: 100dvh;
+      background-color: #05020a;
+      z-index: 100000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      opacity: 1;
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.6s;
+      user-select: none;
+    }
+
+    .talia-splash.fade-out {
+      opacity: 0;
+      pointer-events: none;
+      visibility: hidden;
+    }
+
+    .matrix-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .splash-skip-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 100010;
+      background: rgba(14, 15, 24, 0.78);
+      border: 1px solid rgba(255, 0, 127, 0.55);
+      color: #ff77b4;
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 6px 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+      transition: all 0.2s ease;
+      backdrop-filter: blur(4px);
+    }
+
+    .splash-skip-btn:hover {
+      background: #ff007f;
+      color: #ffffff;
+      border-color: #ffffff;
+      box-shadow: 0 0 14px #ff007f;
+    }
+
+    .splash-header-hud {
+      position: absolute;
+      top: 16px;
+      left: 18px;
+      z-index: 100010;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      pointer-events: none;
+      font-family: var(--font-mono);
+    }
+
+    .splash-brand {
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #ff007f;
+      text-shadow: 0 0 10px rgba(255, 0, 127, 0.7);
+    }
+
+    .splash-phase {
+      font-size: 0.62rem;
+      letter-spacing: 1px;
+      color: #ff77b4;
+      opacity: 0.85;
+    }
+
+    .splash-status-hud {
+      position: absolute;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100010;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #ff2a85;
+      text-shadow: 0 0 10px rgba(255, 42, 133, 0.6);
+      pointer-events: none;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
+  <!-- =========================================================================
+       CYBERPUNK MATRIX SPLASH SCREEN (HOT PINK RAIN -> ASCII PORTRAIT)
+       ========================================================================= -->
+  <div id="taliaSplash" class="talia-splash">
+    <canvas id="matrixCanvas" class="matrix-canvas"></canvas>
+    <div class="splash-header-hud">
+      <span class="splash-brand">TALIA // NEURAL INTERFACE</span>
+      <span class="splash-phase" id="splashPhase">INITIALIZING RAIN...</span>
+    </div>
+    <button type="button" class="splash-skip-btn" id="splashSkipBtn" title="Пропустити інтро">[ ESC // SKIP SEQUENCE ]</button>
+    <div class="splash-status-hud" id="splashStatus">MATRIX DECRYPT // 0%</div>
+  </div>
   <div class="hud-shell">
     <!-- ХЕДЕР -->
     <header class="hud-header">
@@ -2258,6 +2373,332 @@
     }
 
     handleViewportChange();
+
+    // -------------------------------------------------------------------------
+    // MATRIX DIGITAL RAIN & ASCII PORTRAIT SPLASH SCREEN
+    // -------------------------------------------------------------------------
+    function initMatrixSplash() {
+      const splashElem = document.getElementById("taliaSplash");
+      const canvas = document.getElementById("matrixCanvas");
+      const skipBtn = document.getElementById("splashSkipBtn");
+      const phaseElem = document.getElementById("splashPhase");
+      const statusElem = document.getElementById("splashStatus");
+
+      if (!splashElem || !canvas) return;
+
+      // 1. Оптимізація та сесії: якщо користувач вже бачив інтро у цій вкладці — приховуємо одразу
+      const SEEN_KEY = "talia_intro_seen";
+      if (sessionStorage.getItem(SEEN_KEY) === "true") {
+        splashElem.style.display = "none";
+        return;
+      }
+
+      const ctx = canvas.getContext("2d");
+      let rafId = null;
+      let finished = false;
+
+      function skipIntro() {
+        if (finished) return;
+        finished = true;
+        sessionStorage.setItem(SEEN_KEY, "true");
+        splashElem.classList.add("fade-out");
+        setTimeout(() => {
+          splashElem.style.display = "none";
+          if (rafId) cancelAnimationFrame(rafId);
+        }, 600);
+      }
+
+      if (skipBtn) {
+        skipBtn.addEventListener("click", skipIntro);
+      }
+
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" || e.code === "Escape") {
+          skipIntro();
+        }
+      });
+
+      // 2. Гліфи та сітка
+      const GLYPHS = "ｦｱｳｴｵｶｷｹｺｻｼｽｾｿﾀﾂﾃﾅﾆﾇﾈﾊﾋﾎﾏﾐﾑﾒﾓﾔﾕﾗﾘﾜ0123456789ABCDEFXYZ:・.=+*#%@";
+      const ASCII_RAMP = " .:-=+*#%@";
+
+      let w = window.innerWidth;
+      let h = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      let fontSize = w < 600 ? 10 : 12;
+      let cellW = Math.round(fontSize * 0.65);
+      let cellH = fontSize;
+      let cols = Math.floor(w / cellW);
+      let rows = Math.floor(h / cellH);
+
+      function resizeCanvas() {
+        w = window.innerWidth;
+        h = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        fontSize = w < 600 ? 10 : 12;
+        cellW = Math.round(fontSize * 0.65);
+        cellH = fontSize;
+        cols = Math.floor(w / cellW);
+        rows = Math.floor(h / cellH);
+      }
+
+      resizeCanvas();
+      window.addEventListener("resize", () => {
+        if (!finished) {
+          resizeCanvas();
+          buildPortraitGrid();
+          initDrops();
+        }
+      });
+
+      // 3. Ініціалізація дощу
+      let drops = [];
+      function initDrops() {
+        drops = [];
+        for (let c = 0; c < cols; c++) {
+          drops.push({
+            col: c,
+            y: Math.random() * -rows,
+            speed: 0.45 + Math.random() * 0.65,
+            length: Math.floor(12 + Math.random() * 16),
+            chars: [],
+          });
+        }
+      }
+      initDrops();
+
+      // 4. Pixel-to-ASCII Engine: Динамічне завантаження зображення у віртуальний canvas
+      let targetMap = new Map();
+      let pCols = 0;
+      let pRows = 0;
+      let startCol = 0;
+      let startRow = 0;
+      let imgLoaded = false;
+      const avatarImg = new Image();
+      avatarImg.crossOrigin = "anonymous";
+      avatarImg.src = "assets/avatar/mouth_idle.png";
+
+      avatarImg.onload = () => {
+        imgLoaded = true;
+        buildPortraitGrid();
+      };
+      avatarImg.onerror = () => {
+        avatarImg.src = "assets/avatar/base.png";
+      };
+
+      function buildPortraitGrid() {
+        if (!imgLoaded) return;
+        targetMap.clear();
+
+        // Пропорції арту Талії 735 / 851 (~0.8637)
+        const targetHeightRatio = w < 600 ? 0.66 : 0.72;
+        pRows = Math.floor(rows * targetHeightRatio);
+        pCols = Math.round(pRows * 0.8637 * (cellH / cellW));
+
+        if (pCols > Math.floor(cols * 0.88)) {
+          pCols = Math.floor(cols * 0.88);
+          pRows = Math.round(pCols / 0.8637 * (cellW / cellH));
+        }
+
+        startCol = Math.floor((cols - pCols) / 2);
+        startRow = Math.floor((rows - pRows) / 2);
+
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = pCols;
+        offCanvas.height = pRows;
+        const offCtx = offCanvas.getContext("2d", { willReadFrequently: true });
+        offCtx.drawImage(avatarImg, 0, 0, pCols, pRows);
+
+        const imgData = offCtx.getImageData(0, 0, pCols, pRows).data;
+
+        for (let pr = 0; pr < pRows; pr++) {
+          for (let pc = 0; pc < pCols; pc++) {
+            const idx = (pr * pCols + pc) * 4;
+            const r = imgData[idx];
+            const g = imgData[idx + 1];
+            const b = imgData[idx + 2];
+            const a = imgData[idx + 3];
+
+            if (a > 32) {
+              const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+              const rampIdx = Math.min(ASCII_RAMP.length - 1, Math.floor((lum / 255) * ASCII_RAMP.length));
+              const char = ASCII_RAMP[rampIdx];
+
+              // Бірюзові неонові очі
+              const isCyan = (g > 140 && b > 170 && r < 110);
+              // Рожеве волосся
+              const isPink = (r > 165 && b > 105 && g < 135);
+
+              const screenCol = startCol + pc;
+              const screenRow = startRow + pr;
+
+              targetMap.set(`${screenCol}_${screenRow}`, {
+                col: screenCol,
+                row: screenRow,
+                char,
+                r, g, b, a,
+                lum,
+                isCyan,
+                isPink,
+                locked: false,
+                lockTime: 0,
+              });
+            }
+          }
+        }
+      }
+
+      // 5. Фазова кінематика (Canvas Timeline)
+      const startTime = performance.now();
+
+      function render(now) {
+        if (finished) return;
+
+        const elapsed = (now - startTime) / 1000;
+
+        let rainAlpha = 1.0;
+        if (elapsed < 1.2) {
+          // 0.0с – 1.2с (Rain Phase)
+          if (phaseElem) phaseElem.textContent = "PHASE 1 // DIGITAL RAIN STREAM";
+          if (statusElem) statusElem.textContent = `DECRYPTING MATRIX // ${Math.round((elapsed / 1.2) * 35)}%`;
+        } else if (elapsed < 3.2) {
+          // 1.2с – 3.2с (Convergence Phase)
+          const p = (elapsed - 1.2) / 2.0;
+          if (phaseElem) phaseElem.textContent = "PHASE 2 // SYNAPSE CONVERGENCE";
+          if (statusElem) statusElem.textContent = `SYNTHESIZING TALIA // ${Math.min(99, Math.round(35 + p * 64))}%`;
+
+          // Хвиля фіксації пікселів зверху вниз
+          const sweepRow = startRow + Math.floor(p * (pRows + 8));
+          for (const cell of targetMap.values()) {
+            if (!cell.locked && cell.row <= sweepRow) {
+              cell.locked = true;
+              cell.lockTime = elapsed;
+            }
+          }
+        } else if (elapsed < 4.0) {
+          // 3.2с – 4.0с (Hold & Dissolve)
+          for (const cell of targetMap.values()) {
+            if (!cell.locked) {
+              cell.locked = true;
+              cell.lockTime = elapsed;
+            }
+          }
+          const fadeProgress = (elapsed - 3.2) / 0.8;
+          rainAlpha = Math.max(0, 1.0 - fadeProgress * 1.2);
+          if (phaseElem) phaseElem.textContent = "PHASE 3 // CONVERGENCE LOCKED";
+          if (statusElem) statusElem.textContent = "TALIA // NEURAL SYNC COMPLETE";
+        } else {
+          // 4.0с: плавне зникнення інтро
+          skipIntro();
+          return;
+        }
+
+        // Шлейф затухання у глибокий чорно-фіолетовий #05020a
+        ctx.fillStyle = rainAlpha < 0.8 ? "rgba(5, 2, 10, 0.38)" : "rgba(5, 2, 10, 0.18)";
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.font = `bold ${fontSize}px 'JetBrains Mono', monospace`;
+        ctx.textBaseline = "top";
+
+        // Малювання дощу
+        if (rainAlpha > 0.02) {
+          for (const drop of drops) {
+            drop.y += drop.speed;
+            if (drop.y - drop.length > rows) {
+              drop.y = Math.random() * -12;
+              drop.speed = 0.45 + Math.random() * 0.65;
+              drop.length = Math.floor(12 + Math.random() * 16);
+            }
+
+            const curY = Math.floor(drop.y);
+            for (let k = 0; k < drop.length; k++) {
+              const dropRow = curY - k;
+              if (dropRow < 0 || dropRow >= rows) continue;
+
+              const cell = targetMap.get(`${drop.col}_${dropRow}`);
+              if (cell && cell.locked) continue;
+
+              if (Math.random() < 0.08 || !drop.chars[k]) {
+                drop.chars[k] = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+              }
+
+              const char = drop.chars[k];
+              const x = drop.col * cellW;
+              const y = dropRow * cellH;
+
+              if (k === 0) {
+                // Лідер-гліф: біло-рожевий спалах з розмиттям
+                ctx.fillStyle = "#ffffff";
+                ctx.shadowColor = "#ff007f";
+                ctx.shadowBlur = 10;
+                ctx.fillText(char, x, y);
+              } else {
+                const ratio = (1 - k / drop.length) * rainAlpha;
+                ctx.shadowBlur = 0;
+                if (k < 3) {
+                  ctx.fillStyle = `rgba(255, 119, 180, ${ratio})`;
+                } else if (k < 7) {
+                  ctx.fillStyle = `rgba(255, 42, 133, ${ratio})`;
+                } else {
+                  ctx.fillStyle = `rgba(255, 0, 127, ${ratio * 0.75})`;
+                }
+                ctx.fillText(char, x, y);
+              }
+            }
+          }
+        }
+
+        // Малювання зафіксованого ASCII-портрета Талії
+        for (const cell of targetMap.values()) {
+          if (!cell.locked) continue;
+
+          const x = cell.col * cellW;
+          const y = cell.row * cellH;
+          const dt = elapsed - cell.lockTime;
+
+          if (dt < 0.22) {
+            // Неоновий спалах при кристалізації гліфа
+            ctx.fillStyle = "#ffffff";
+            ctx.shadowColor = "#ff007f";
+            ctx.shadowBlur = 12;
+            const flashChar = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+            ctx.fillText(flashChar, x, y);
+          } else {
+            let ch = cell.char;
+            if (Math.random() < 0.006) {
+              ch = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+            }
+
+            if (cell.isCyan) {
+              ctx.fillStyle = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
+              ctx.shadowColor = "#00f0ff";
+              ctx.shadowBlur = 8;
+            } else if (cell.isPink) {
+              ctx.fillStyle = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
+              ctx.shadowColor = "#ff007f";
+              ctx.shadowBlur = 5;
+            } else {
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = `rgb(${cell.r}, ${cell.g}, ${cell.b})`;
+            }
+
+            ctx.fillText(ch, x, y);
+          }
+        }
+
+        rafId = requestAnimationFrame(render);
+      }
+
+      rafId = requestAnimationFrame(render);
+    }
+
+    // Запуск інтро
+    initMatrixSplash();
 
     // Початкова синхронізація та автооновлення кожні 6 секунд
     checkConnection();
