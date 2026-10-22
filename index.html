@@ -666,7 +666,7 @@
       user-select: none;
     }
 
-    /* Шар 1: Підкладка (білки очей + рот) */
+    /* Шар 1: Підкладка (білки очей sclera) */
     #avatarBaseLayer {
       z-index: 1;
     }
@@ -676,18 +676,30 @@
       z-index: 2;
       transition: transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
       will-change: transform;
+      pointer-events: none;
     }
 
     /* Шар 3: Маска (тіло, зачіска, маска з вирізами очей) */
     #avatarMask {
       z-index: 3;
+      pointer-events: none;
     }
 
-    /* Шар 4: Кіберпанк-візор (CRT scanlines, віньєтка, неонова рамка) */
+    /* Шар 4: Голографічний рот поверх маски */
+    #avatarMouthLayer {
+      z-index: 4;
+      pointer-events: none;
+      user-select: none;
+      mix-blend-mode: screen;
+      filter: drop-shadow(0 0 6px rgba(255, 100, 50, 0.65));
+      transition: opacity 0.15s ease;
+    }
+
+    /* Шар 5: Кіберпанк-візор (CRT scanlines, віньєтка, неонова рамка) */
     .avatar-visor-overlay {
       position: absolute;
       inset: 0;
-      z-index: 4;
+      z-index: 5;
       pointer-events: none;
       background:
         repeating-linear-gradient(
@@ -702,12 +714,12 @@
       transition: box-shadow 0.25s ease;
     }
 
-    /* Напрямки погляду зіниць */
+    /* Напрямки погляду зіниць (відкалібровані мікрорухи) */
     .avatar-pupils.look-center { transform: translate(0, 0); }
-    .avatar-pupils.look-left   { transform: translate(-10px, 0); }
-    .avatar-pupils.look-right  { transform: translate(10px, 0); }
-    .avatar-pupils.look-up     { transform: translate(0, -7px); }
-    .avatar-pupils.look-down   { transform: translate(0, 6px); }
+    .avatar-pupils.look-left   { transform: translate(-2px, 0); }
+    .avatar-pupils.look-right  { transform: translate(2.5px, 0); }
+    .avatar-pupils.look-up     { transform: translate(0, -1.5px); }
+    .avatar-pupils.look-down   { transform: translate(0, 1.5px); }
 
     /* СТАНИ АВАТАРА */
     /* IDLE */
@@ -869,13 +881,15 @@
       <aside class="avatar-viewport-card state-idle" id="avatarCard" title="TALIA // 2D NEURAL AVATAR">
         <div class="avatar-status-badge" id="avatarStateLabel">IDLE // ONLINE</div>
         <div class="avatar-viewport">
-          <!-- Нижній шар: підкладка (білки очей + активний стан рота) -->
-          <img id="avatarBaseLayer" src="assets/avatar/mouth_idle.png" alt="Talia Face Base" />
-          <!-- Середній шар: зіниці з динамічним рухом очей -->
+          <!-- Нижній шар: білки очей -->
+          <img id="avatarBaseLayer" src="assets/avatar/sclera.png" alt="Talia Eye Sclera" />
+          <!-- Середній шар: зіниці з відкаліброваним мікрорухом очей -->
           <img id="avatarPupils" class="avatar-pupils look-center" src="assets/avatar/pupils.png" alt="Talia Pupils" />
-          <!-- Верхній шар: маска-трафарет із вирізами для очей -->
-          <img id="avatarMask" src="assets/avatar/base.png" alt="Talia Head Mask" />
-          <!-- Оверлей: CRT scanlines, віньєтка та неонове бірюзово-помаранчеве світіння -->
+          <!-- Верхній шар: маска-трафарет із вирізами для очей та рота -->
+          <img id="avatarMask" src="assets/avatar/base_mouth_hole.png" alt="Talia Head Mask" />
+          <!-- Шар рота: голографічна проекція з неоновим світінням (screen blend) -->
+          <img id="avatarMouthLayer" src="assets/avatar/mouth_idle_glow.png" alt="Talia Holographic Mouth" />
+          <!-- Оверлей: CRT scanlines, віньєтка та неонове світіння -->
           <div class="avatar-visor-overlay"></div>
         </div>
       </aside>
@@ -985,9 +999,10 @@
         this.card = document.getElementById("avatarCard");
         this.baseLayer = document.getElementById("avatarBaseLayer");
         this.pupils = document.getElementById("avatarPupils");
+        this.mouthLayer = document.getElementById("avatarMouthLayer");
         this.stateLabel = document.getElementById("avatarStateLabel");
 
-        this.state = "IDLE"; // IDLE | THINKING | SPEAKING | ERROR
+        this.state = "IDLE"; // IDLE | THINKING | SPEAKING | ERROR | SMILE
         this.idleTimer = null;
         this.speakTimer = null;
         this.errorTimer = null;
@@ -996,10 +1011,11 @@
 
         // Попереднє кешування шарів для миттєвої зміни кадрів
         this.assets = {
-          idle: "assets/avatar/mouth_idle.png",
-          speak1: "assets/avatar/mouth_speak_1.png",
-          speak2: "assets/avatar/mouth_speak_2.png",
-          smile: "assets/avatar/mouth_smile.png"
+          sclera: "assets/avatar/sclera.png",
+          idle: "assets/avatar/mouth_idle_glow.png",
+          speak1: "assets/avatar/mouth_speak_1_glow.png",
+          speak2: "assets/avatar/mouth_speak_2_glow.png",
+          smile: "assets/avatar/mouth_smile_glow.png"
         };
         Object.values(this.assets).forEach((src) => {
           const img = new Image();
@@ -1036,7 +1052,7 @@
         this._clearTimers();
         this.state = "IDLE";
         this._setClasses("state-idle", "IDLE // READY");
-        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
         this.setLook("center");
         this._scheduleIdleEyeMovement();
       }
@@ -1045,11 +1061,10 @@
         const nextDelay = Math.floor(Math.random() * (5000 - 2500 + 1)) + 2500; // 2.5 - 5 сек
         this.idleTimer = setTimeout(() => {
           if (this.state !== "IDLE") return;
-          const moves = ["look-left", "look-right", "look-center", "look-center", "look-down"];
+          const moves = ["look-left", "look-right", "look-center", "look-center", "look-down", "look-up"];
           const choice = moves[Math.floor(Math.random() * moves.length)].replace("look-", "");
           this.setLook(choice);
 
-          // Якщо подивилася вбік, через 1.2с повертаємо погляд у центр
           if (choice !== "center") {
             setTimeout(() => {
               if (this.state === "IDLE") this.setLook("center");
@@ -1063,14 +1078,13 @@
         this._clearTimers();
         this.state = "THINKING";
         this._setClasses("state-thinking", "THINKING // NEURAL");
-        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
         this.setLook("up");
 
-        // Сканування зіниць ліворуч-праворуч під час обробки
         let scanToggle = false;
         this.thinkingTimer = setInterval(() => {
           if (this.state !== "THINKING") return;
-          this.setLook(scanToggle ? "look-left" : "look-right");
+          this.setLook(scanToggle ? "left" : "right");
           scanToggle = !scanToggle;
         }, 600);
       }
@@ -1082,13 +1096,14 @@
         this.setLook("center");
 
         let frame = 0;
+        if (this.mouthLayer) this.mouthLayer.src = this.assets.speak1;
         this.speakTimer = setInterval(() => {
           if (this.state !== "SPEAKING") return;
           frame = (frame + 1) % 2;
-          if (this.baseLayer) {
-            this.baseLayer.src = frame === 0 ? this.assets.speak1 : this.assets.speak2;
+          if (this.mouthLayer) {
+            this.mouthLayer.src = frame === 0 ? this.assets.speak1 : this.assets.speak2;
           }
-        }, 130);
+        }, 120);
       }
 
       stopSpeaking(withSmile = true) {
@@ -1098,7 +1113,7 @@
         if (withSmile) {
           this.state = "SMILE";
           this._setClasses("state-idle", "TALIA // AFFIRMATIVE");
-          if (this.baseLayer) this.baseLayer.src = this.assets.smile;
+          if (this.mouthLayer) this.mouthLayer.src = this.assets.smile;
           this.setLook("center");
 
           this.smileTimer = setTimeout(() => {
@@ -1113,7 +1128,7 @@
         this._clearTimers();
         this.state = "ERROR";
         this._setClasses("state-error", "ERR // SYSTEM GLITCH");
-        if (this.baseLayer) this.baseLayer.src = this.assets.idle;
+        if (this.mouthLayer) this.mouthLayer.src = this.assets.idle;
         this.setLook("center");
 
         this.errorTimer = setTimeout(() => {
@@ -1123,6 +1138,27 @@
     }
 
     const avatarController = new TaliaAvatarController();
+
+    // Глобальний тестовий метод для консолі браузера
+    window.testTaliaState = function(state) {
+      const s = (state || "").toLowerCase().trim();
+      console.log(`[TaliaAvatar] Testing state: ${s}`);
+      if (s === "speaking" || s === "speak") {
+        avatarController.startSpeaking();
+      } else if (s === "smile") {
+        avatarController.stopSpeaking(true);
+      } else if (s === "thinking" || s === "think") {
+        avatarController.setThinking();
+      } else if (s === "error" || s === "err") {
+        avatarController.setError();
+      } else if (s === "idle") {
+        avatarController.setIdle();
+      } else if (s.startsWith("look-") || ["left", "right", "center", "up", "down"].includes(s)) {
+        avatarController.setLook(s.replace("look-", ""));
+      } else {
+        console.warn("Unknown state. Use: 'speaking', 'smile', 'thinking', 'error', 'idle', 'left', 'right', 'up', 'down'");
+      }
+    };
 
     const tunnelUrlInput = document.getElementById("tunnelUrlInput");
     const apiKeyInput = document.getElementById("apiKeyInput");
