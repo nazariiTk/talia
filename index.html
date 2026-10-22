@@ -1873,8 +1873,6 @@
     volSlider.addEventListener("input", (e) => {
       volLabel.textContent = `VOL: ${e.target.value}%`;
     });
-      volLabel.textContent = `VOL: ${e.target.value}%`;
-    });
 
     async function triggerPower(action, askConfirm = false) {
       if (askConfirm && !confirm(`Перевести комп'ютер у режим '${action.toUpperCase()}'?`)) {
