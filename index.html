@@ -2481,14 +2481,14 @@
       let imgLoaded = false;
       const avatarImg = new Image();
       avatarImg.crossOrigin = "anonymous";
-      avatarImg.src = "assets/avatar/mouth_idle.png";
+      avatarImg.src = "assets/avatar/original.png";
 
       avatarImg.onload = () => {
         imgLoaded = true;
         buildPortraitGrid();
       };
       avatarImg.onerror = () => {
-        avatarImg.src = "assets/avatar/base.png";
+        avatarImg.src = "assets/avatar/mouth_idle.png";
       };
 
       function buildPortraitGrid() {
@@ -2530,9 +2530,9 @@
               const char = ASCII_RAMP[rampIdx];
 
               // Бірюзові неонові очі
-              const isCyan = (g > 140 && b > 170 && r < 110);
+              const isCyan = (g > 130 && b > 135 && r < 140);
               // Рожеве волосся
-              const isPink = (r > 165 && b > 105 && g < 135);
+              const isPink = (r > 155 && r > g + 15);
 
               const screenCol = startCol + pc;
               const screenRow = startRow + pr;
